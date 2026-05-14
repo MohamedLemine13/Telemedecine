@@ -1,0 +1,116 @@
+:host {
+  display: block;
+}
+
+.kpi-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  min-width: 400px;
+  flex: 1;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 0 1px rgba(0, 0, 0, 0.08);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Top row: icon + badge + period ── */
+.kpi-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.kpi-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.kpi-badge.positive {
+  background: #e6f9f0;
+  color: #00b074;
+}
+
+.kpi-badge.negative {
+  background: #fde8e8;
+  color: #f0142f;
+}
+
+.kpi-period {
+  font-size: 0.75rem;
+  color: #8b8fa7;
+  white-space: nowrap;
+}
+
+/* ── Title ── */
+.kpi-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #8b8fa7;
+  margin-bottom: 4px;
+  letter-spacing: 0.01em;
+}
+
+/* ── Bottom row: value + chart ── */
+.kpi-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kpi-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1e1e2d;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.kpi-chart {
+  flex-shrink: 0;
+  width: 100px;
+  height: 40px;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .kpi-card {
+    min-width: 160px;
+    padding: 16px 18px;
+  }
+
+  .kpi-value {
+    font-size: 1.3rem;
+  }
+
+  .kpi-chart {
+    width: 80px;
+    height: 32px;
+  }
+}
