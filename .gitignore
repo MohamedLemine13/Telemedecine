@@ -1,0 +1,75 @@
+# ─── OS / IDE ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ─── Env / Secrets ────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Node / Angular ───────────────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.angular/
+**/.angular/
+coverage/
+**/coverage/
+out-tsc/
+__screenshots__/
+playwright-report/
+test-results/
+.nyc_output/
+
+# ─── Java / Maven ─────────────────────────────────────────────────────────────
+target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
+HELP.md
+hs_err_pid*
+
+# ─── Spring Boot dev artifacts ────────────────────────────────────────────────
+.springBeans
+.factorypath
+out/
+**/out/
+
+# ─── Docker / compose local data ──────────────────────────────────────────────
+.docker-data/
+postgres-data/
+minio-data/
+livekit-data/
+
+# ─── Local key material (never commit) ────────────────────────────────────────
+*.p12
+*.pfx
+*.jks
+*.key
+*.pem
+!backend/src/main/resources/public-keys/*.pem
+
+# ─── Generated OpenAPI clients are committed deliberately ─────────────────────
+# (do not ignore frontend/src/app/api/generated/)
+.claude
+.env.example
+.github
+DESIGN.md
+SECURITY.md

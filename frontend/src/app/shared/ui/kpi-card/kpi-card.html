@@ -1,0 +1,95 @@
+<div class="kpi-card">
+  <p class="kpi-title">{{ title() }}</p>
+
+  <div class="kpi-main">
+    <span class="kpi-value">{{ value() }}</span>
+
+    <div class="kpi-icon" [style.backgroundColor]="iconColor() + '1A'" [style.color]="iconColor()">
+      @if (title() === 'Doctors') {
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v1c0 .55.45 1 1 1h14c.55 0 1-.45 1-1v-1c0-2.66-5.33-4-8-4z" />
+        </svg>
+      } @else if (title() === 'Patients' || title() === 'Top Patients') {
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+          <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+        </svg>
+      } @else if (title() === 'Appointments' || title() === 'Queue') {
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+          <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z" />
+        </svg>
+      } @else if (title() === 'Revenue') {
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+          <text x="50%" y="50%" font-family="Inter, sans-serif" font-size="9" font-weight="700"
+                text-anchor="middle" alignment-baseline="central">MRU</text>
+        </svg>
+      } @else {
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
+        </svg>
+      }
+    </div>
+  </div>
+
+  <div class="kpi-meta">
+    <span class="kpi-badge" [class.positive]="isPositive()" [class.negative]="!isPositive()">
+      {{ formattedChange() }}
+    </span>
+    <span class="kpi-period">{{ trendPeriod() }}</span>
+  </div>
+
+  <div class="kpi-chart">
+    @if (chartType() === 'bar') {
+      <svg viewBox="0 0 120 36" preserveAspectRatio="none" class="chart-svg">
+        @for (val of normalizedData(); track $index) {
+          <rect [attr.x]="$index * (120 / normalizedData().length) + 2"
+                [attr.y]="36 - (val / 100) * 32"
+                [attr.width]="(120 / normalizedData().length) - 4"
+                [attr.height]="(val / 100) * 32"
+                [attr.rx]="2"
+                [attr.fill]="iconColor()"
+                [attr.opacity]="0.4 + ($index / normalizedData().length) * 0.6" />
+        }
+      </svg>
+    } @else if (chartType() === 'area') {
+      <svg viewBox="0 0 120 36" preserveAspectRatio="none" class="chart-svg">
+        <defs>
+          <linearGradient [attr.id]="'grad-' + title()" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" [attr.stop-color]="iconColor()" stop-opacity="0.4" />
+            <stop offset="100%" [attr.stop-color]="iconColor()" stop-opacity="0.05" />
+          </linearGradient>
+        </defs>
+        <path [attr.d]="areaPath()" [attr.fill]="'url(#grad-' + title() + ')'" />
+        <path [attr.d]="chartPath()" fill="none" [attr.stroke]="iconColor()" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    } @else if (chartType() === 'line') {
+      <svg viewBox="0 0 120 36" preserveAspectRatio="none" class="chart-svg">
+        <defs>
+          <linearGradient [attr.id]="'grad-' + title()" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" [attr.stop-color]="iconColor()" stop-opacity="0.3" />
+            <stop offset="100%" [attr.stop-color]="iconColor()" stop-opacity="0.02" />
+          </linearGradient>
+        </defs>
+        <path [attr.d]="areaPath()" [attr.fill]="'url(#grad-' + title() + ')'" />
+        <path [attr.d]="chartPath()" fill="none" [attr.stroke]="iconColor()" stroke-width="2.5" stroke-linecap="round" />
+        @if (normalizedData().length > 0) {
+          <circle [attr.cx]="120"
+                  [attr.cy]="36 - (normalizedData()[normalizedData().length - 1] / 100) * 36"
+                  r="3"
+                  [attr.fill]="iconColor()" />
+        }
+      </svg>
+    } @else if (chartType() === 'progress') {
+      <svg viewBox="0 0 120 36" preserveAspectRatio="none" class="chart-svg">
+        @for (val of normalizedData(); track $index) {
+          <rect [attr.x]="$index * (120 / normalizedData().length) + 1"
+                [attr.y]="36 - (val / 100) * 32"
+                [attr.width]="(120 / normalizedData().length) - 2"
+                [attr.height]="(val / 100) * 32"
+                [attr.rx]="1.5"
+                [attr.fill]="$index === normalizedData().length - 1 ? 'var(--color-orange-500)' : iconColor()"
+                [attr.opacity]="0.5 + ($index / normalizedData().length) * 0.5" />
+        }
+      </svg>
+    }
+  </div>
+</div>

@@ -1,0 +1,24 @@
+# Configuration for @openapitools/openapi-generator-cli.
+# Runs the typescript-angular generator against the backend's live OpenAPI spec.
+# Invoke with: `npm run api:generate`
+
+generatorName: typescript-angular
+inputSpec: http://localhost:8080/v3/api-docs
+outputDir: ../src/app/api/generated
+
+additionalProperties:
+  ngVersion: '21.2.0'
+  fileNaming: kebab-case
+  withInterfaces: true
+  useSingleRequestParameter: true
+  serviceSuffix: Api
+  modelPropertyNaming: camelCase
+  providedIn: root
+  stringEnums: true
+  taggedUnions: true
+  supportsES6: true
+
+globalProperty:
+  apis: ''
+  models: ''
+  supportingFiles: ''

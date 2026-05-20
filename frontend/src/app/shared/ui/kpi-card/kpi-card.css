@@ -1,0 +1,105 @@
+:host {
+  display: block;
+}
+
+.kpi-card {
+  background: var(--color-neutral-0);
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+  min-width: 220px;
+  box-shadow: var(--shadow-1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
+
+/* ── Title row: small label up top + bigger metric below ── */
+.kpi-title {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-neutral-500);
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+/* ── Main row: big number left, colored icon-tile right ── */
+.kpi-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.kpi-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.kpi-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Trend pill + period row ── */
+.kpi-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.kpi-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.kpi-badge.positive {
+  background: var(--color-success-50);
+  color: var(--color-success);
+}
+
+.kpi-badge.negative {
+  background: var(--color-error-50);
+  color: var(--color-error);
+}
+
+.kpi-period {
+  font-size: 0.72rem;
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+/* ── Sparkline ── */
+.kpi-chart {
+  margin-top: 10px;
+  height: 36px;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .kpi-card { padding: 14px 16px; }
+  .kpi-value { font-size: 1.5rem; }
+  .kpi-icon { width: 40px; height: 40px; }
+}

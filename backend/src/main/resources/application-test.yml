@@ -1,0 +1,12 @@
+spring:
+  # Datasource is provided by Testcontainers in tests via @ServiceConnection.
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+logging:
+  level:
+    org.testcontainers: INFO
+    com.github.dockerjava: WARN
+    org.hibernate.SQL: WARN

@@ -1,19 +1,102 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* You can add global styles to this file, and also import other style files */
-
 @import 'tailwindcss';
 
-*, *::before, *::after {
+/* ===========================================================================
+   Design tokens — see /DESIGN.md for the rationale and per-token usage notes.
+   Aligned to the Figma "Preclinic" style: bright blue primary, white sidebars
+   with a tinted-blue active row, soft grey body bg.
+   =========================================================================== */
+@theme {
+  /* Brand — brighter than the navy I started with, matches the Figma. */
+  --color-primary-50: #EEF1FF;
+  --color-primary-100: #DDE3FC;
+  --color-primary-500: #4B5BD6;
+  --color-primary-700: #3A56C1;
+  --color-primary-900: #2A3C8C;
+
+  /* Sidebar / surface */
+  --color-sidebar-bg: #FFFFFF;
+  --color-sidebar-active-bg: #EEF1FF;     /* same as primary-50 */
+  --color-sidebar-active-bar: #3A56C1;
+  --color-topbar-bg: #FFFFFF;
+
+  /* Accents */
+  --color-cyan-500: #00BCD4;
+  --color-orange-500: #FF7A45;
+  --color-orange-50: #FFE9DC;
+  --color-purple-500: #8B5CF6;
+  --color-purple-50: #EFE6FF;
+
+  /* Semantic + their tint backgrounds for status pills */
+  --color-success: #1FBF87;
+  --color-success-50: #E1F8EF;
+  --color-warning: #F0A227;
+  --color-warning-50: #FCEEDA;
+  --color-error: #E5484D;
+  --color-error-50: #FCE4E4;
+  --color-info: #3998E0;
+  --color-info-50: #E1EFFB;
+  --color-neutral-pill-bg: #EEF0F4;
+  --color-neutral-pill-fg: #6B7280;
+
+  /* Neutrals */
+  --color-neutral-0: #FFFFFF;
+  --color-neutral-25: #FAFAFC;
+  --color-neutral-50: #F4F5F8;
+  --color-neutral-100: #ECEEF2;
+  --color-neutral-200: #DCDFE6;
+  --color-neutral-400: #9CA3AF;
+  --color-neutral-500: #6B7280;
+  --color-neutral-700: #374151;
+  --color-neutral-900: #1F2937;
+
+  /* Type */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Radii */
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-modal: 16px;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-2: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-3: 0 12px 32px rgba(15, 23, 42, 0.10);
+}
+
+/* ===========================================================================
+   Reset & base
+   =========================================================================== */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #f5f6fa;
-  color: #1e1e2d;
+  font-family: var(--font-sans);
+  background-color: var(--color-neutral-50);
+  color: var(--color-neutral-900);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--color-primary-700);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-primary-500);
+}
+
+/* Focus ring — applied to focusable controls unless overridden. */
+:focus-visible {
+  outline: 2px solid var(--color-primary-700);
+  outline-offset: 2px;
 }

@@ -1,0 +1,104 @@
+# Full local stack for the Telemedecine school project.
+#
+#   docker compose up -d --build      # build images + start everything
+#   docker compose logs -f backend    # tail one service
+#   docker compose down               # stop, keep data
+#   docker compose down -v            # stop and drop database / uploaded files
+#
+# Once up:
+#   http://localhost:4200    Angular app (nginx → SPA + reverse-proxy /api,/ws,/swagger-ui)
+#   http://localhost:8080    Backend direct (Swagger at /swagger-ui.html)
+#   http://localhost:8025    MailHog UI
+#   ws://localhost:7880      LiveKit signalling (Phase 4)
+
+name: telemedecine
+
+services:
+  # ─── Infrastructure ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: telemed-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-telemedecine}
+      POSTGRES_USER: ${DB_USER:-telemed}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me-in-real-env}
+    ports:
+      - "5442:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-telemed} -d ${DB_NAME:-telemedecine}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: telemed-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: telemed-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50100:50000-50100/udp"
+    volumes:
+      - ./infra/livekit/livekit.yaml:/etc/livekit.yaml:ro
+
+  # ─── Application ───────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../infra/docker/backend.Dockerfile
+    image: telemedecine/backend:dev
+    container_name: telemed-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-telemedecine}
+      DB_USER: ${DB_USER:-telemed}
+      DB_PASSWORD: ${DB_PASSWORD:-change-me-in-real-env}
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      STORAGE_ROOT: /app/uploads
+      LIVEKIT_URL: ws://livekit:7880
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret-min-32-chars-aaaaaaaaaaaaaa}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-please-replace-with-a-long-random-string}
+    volumes:
+      # File uploads (doctor credentials, lab-result PDFs). Survives container
+      # restarts; cleared by `docker compose down -v`.
+      - uploads-data:/app/uploads
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/docker/frontend.Dockerfile
+    image: telemedecine/frontend:dev
+    container_name: telemed-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "4200:80"
+
+volumes:
+  postgres-data:
+  uploads-data:

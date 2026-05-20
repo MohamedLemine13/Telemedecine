@@ -1,0 +1,15 @@
+# Keep the Docker build context tight. Anything not needed by the Dockerfile
+# stays out — speeds up `docker compose build` and avoids polluting layers.
+target/
+.idea/
+.vscode/
+.git/
+.gitignore
+*.log
+HELP.md
+**/*.iml
+# Local key material (matches root .gitignore but enforced at build context too)
+*.p12
+*.pfx
+*.jks
+*.key

@@ -1,0 +1,30 @@
+# Local-dev LiveKit configuration.
+# Keys here MUST match LIVEKIT_API_KEY / LIVEKIT_API_SECRET in your .env.
+
+port: 7880
+bind_addresses:
+  - ""
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: false
+
+keys:
+  # devkey: devsecret-min-32-chars-aaaaaaaaaaaaaa
+  devkey: devsecret-min-32-chars-aaaaaaaaaaaaaa
+
+log_level: info
+
+# Single-node dev setup — no Redis, no clustering.
+redis: {}
+
+room:
+  auto_create: true
+  empty_timeout: 300
+  departure_timeout: 20
+
+webhook:
+  api_key: devkey
+  urls: []

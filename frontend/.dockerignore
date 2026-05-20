@@ -1,0 +1,13 @@
+# Keep the Docker build context lean.
+node_modules/
+dist/
+.angular/
+coverage/
+.git/
+.gitignore
+.idea/
+.vscode/
+__screenshots__/
+playwright-report/
+test-results/
+*.log
