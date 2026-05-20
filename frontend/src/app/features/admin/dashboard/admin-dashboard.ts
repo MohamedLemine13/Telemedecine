@@ -18,12 +18,12 @@ import { KpiCard, KpiCardData } from '../../../shared/ui';
     <header class="mb-7">
       <h1 class="text-2xl font-bold text-[color:var(--color-neutral-900)]">Admin · Dashboard</h1>
       <p class="mt-1 text-sm text-[color:var(--color-neutral-500)]">
-        Platform-wide KPIs for the last 7 days.
+        Platform-wide KPIs for the last 9 days.
       </p>
     </header>
 
     <section class="kpi-grid">
-      @for (kpi of kpiData(); track kpi.title) {
+      @for (kpi of kpis; track kpi.title) {
         <app-kpi-card
           [title]="kpi.title"
           [value]="kpi.value"
@@ -48,7 +48,7 @@ import { KpiCard, KpiCardData } from '../../../shared/ui';
   `
 })
 export class AdminDashboard {
-  readonly kpiData = input<KpiCardData[]>([
+  readonly kpis: KpiCardData[] = [
     {
       title: 'Doctors',
       value: '0',
@@ -94,5 +94,5 @@ export class AdminDashboard {
       chartType: 'area',
       chartData: [25, 40, 35, 55, 45, 60, 72]
     }
-  ]);
+  ];
 }
