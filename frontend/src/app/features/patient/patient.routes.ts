@@ -23,11 +23,23 @@ export const patientRoutes: Routes = [
     loadComponent: () => import('../settings/settings').then(m => m.Settings),
     data: { title: 'Settings' }
   },
+  {
+    path: 'doctors/:id',
+    loadComponent: () => import('./doctor-detail/doctor-detail').then(m => m.DoctorDetail),
+    data: { title: 'Doctor profile' }
+  },
+  {
+    path: 'appointments',
+    loadComponent: () => import('./appointments/appointments-list').then(m => m.PatientAppointments),
+    data: { title: 'My appointments' }
+  },
   // ── Coming in Phase 3+ ──
-  { path: 'doctors/:id',        component: ComingSoon, data: { title: 'Doctor profile',     phase: 'Phase 3' } },
-  { path: 'appointments',       component: ComingSoon, data: { title: 'My appointments',    phase: 'Phase 3' } },
-  { path: 'appointments/:id',   component: ComingSoon, data: { title: 'Appointment detail', phase: 'Phase 3' } },
-  { path: 'consultations/:id',  component: ComingSoon, data: { title: 'Video consultation', phase: 'Phase 4' } },
+  {
+    path: 'consultations/:appointmentId',
+    loadComponent: () => import('../consultation/video-consultation-room').then(m => m.VideoConsultationRoom),
+    data: { title: 'Consultation' }
+  },
+  { path: 'appointments/:id',   component: ComingSoon, data: { title: 'Appointment detail', phase: 'Phase 5' } },
   { path: 'prescriptions',      component: ComingSoon, data: { title: 'Prescriptions',      phase: 'Phase 5' } },
   { path: 'prescriptions/:id',  component: ComingSoon, data: { title: 'Prescription',       phase: 'Phase 5' } },
   { path: 'messages',           component: ComingSoon, data: { title: 'Messages',           phase: 'Phase 4' } },

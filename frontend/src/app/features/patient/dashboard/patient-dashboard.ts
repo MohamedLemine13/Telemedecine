@@ -1,16 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { DatePipe, TitleCasePipe } from '@angular/common';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { AppointmentApi, AppointmentDto } from '../../../core/api/appointment.api';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { Card, PageHeader, StatusBadge, StatusVariant } from '../../../shared/ui';
-
-interface UpcomingAppointment {
-  id: string;
-  doctorName: string;
-  specialty: string;
-  whenLabel: string;
-  mode: 'video' | 'phone';
-}
 
 interface ActivePrescription {
   id: string;
@@ -31,11 +25,11 @@ interface Transaction {
 @Component({
   selector: 'app-patient-dashboard',
   standalone: true,
-  imports: [Card, RouterLink, PageHeader, StatusBadge],
+  imports: [Card, RouterLink, DatePipe, TitleCasePipe, PageHeader, StatusBadge],
   template: `
     <app-page-header [title]="'Hello' + greeting()" subtitle="Here's a quick look at your health space.">
       <a actions routerLink="/patient/doctors"
-         class="inline-flex items-center gap-2 rounded-[var(--radius-input)] bg-[color:var(--color-primary-700)] px-4 h-10 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-500)]">
+         class="inline-flex items-center gap-2 rounded-[var(--radius-input)] bg-[color:var(--color-primary-700)] px-4 h-10 text-sm font-semibold text-[color:var(--color-neutral-0)] hover:bg-[color:var(--color-primary-500)]">
         + Find a doctor
       </a>
     </app-page-header>
@@ -74,29 +68,27 @@ interface Transaction {
             View all
           </a>
         </div>
-        @if (upcoming.length) {
+        @if (loadingAppts()) {
+          <p class="py-6 text-center text-sm text-[color:var(--color-neutral-500)]">Loading…</p>
+        } @else if (upcoming().length) {
           <ul class="divide-y divide-[color:var(--color-neutral-200)]">
-            @for (a of upcoming; track a.id) {
+            @for (a of upcoming(); track a.id) {
               <li class="flex items-center justify-between py-3">
                 <div>
-                  <p class="text-sm font-semibold">{{ a.doctorName }}</p>
-                  <p class="text-xs text-[color:var(--color-neutral-500)]">{{ a.specialty }}</p>
+                  <p class="text-sm font-semibold">{{ a.doctor.name || a.doctor.email }}</p>
+                  <p class="text-xs text-[color:var(--color-neutral-500)]">{{ a.startAt | date:'EEE d MMM, HH:mm':'UTC' }}</p>
                 </div>
                 <div class="text-right">
-                  <p class="text-sm font-medium">{{ a.whenLabel }}</p>
-                  <p class="text-xs uppercase tracking-wide text-[color:var(--color-primary-700)]">{{ a.mode }} consult</p>
+                  <p class="text-xs uppercase tracking-wide text-[color:var(--color-primary-700)]">{{ a.mode | titlecase }} consult</p>
                 </div>
               </li>
             }
           </ul>
         } @else {
           <p class="py-6 text-center text-sm text-[color:var(--color-neutral-500)]">
-            No appointments yet. <a routerLink="/patient/doctors" class="text-[color:var(--color-primary-700)] hover:underline">Find a doctor</a>.
+            No upcoming appointments. <a routerLink="/patient/doctors" class="text-[color:var(--color-primary-700)] hover:underline">Find a doctor</a>.
           </p>
         }
-        <p class="mt-3 text-xs italic text-[color:var(--color-neutral-500)]">
-          Showing sample data — real booking lands in Phase 3.
-        </p>
       </app-card>
 
       <!-- Prescriptions -->
@@ -158,8 +150,28 @@ interface Transaction {
     </section>
   `
 })
-export class PatientDashboard {
+export class PatientDashboard implements OnInit {
   private readonly auth = inject(AuthStore);
+  private readonly appointments = inject(AppointmentApi);
+
+  protected readonly upcoming = signal<AppointmentDto[]>([]);
+  protected readonly loadingAppts = signal(true);
+
+  ngOnInit(): void {
+    this.appointments.list({ status: 'SCHEDULED', size: 50 }).subscribe({
+      next: page => {
+        const now = Date.now();
+        this.upcoming.set(
+          page.content
+            .filter(a => new Date(a.startAt).getTime() > now)
+            .sort((x, y) => x.startAt.localeCompare(y.startAt))
+            .slice(0, 4)
+        );
+        this.loadingAppts.set(false);
+      },
+      error: () => this.loadingAppts.set(false)
+    });
+  }
 
   greeting(): string {
     const email = this.auth.user()?.email;
@@ -175,12 +187,7 @@ export class PatientDashboard {
     return 'neutral';
   }
 
-  // Mock data — replaced with real API calls in Phases 3 / 5.
-  upcoming: UpcomingAppointment[] = [
-    { id: '1', doctorName: 'Dr. Aïcha Sow',     specialty: 'General practice', whenLabel: 'Tomorrow · 10:30', mode: 'video' },
-    { id: '2', doctorName: 'Dr. Oumar Diallo',  specialty: 'Cardiology',       whenLabel: 'Fri · 14:00',     mode: 'video' }
-  ];
-
+  // Mock data — prescriptions + transactions are wired in Phase 5.
   prescriptions: ActivePrescription[] = [
     { id: '1', medication: 'Amoxicillin 500 mg', dosage: '1 tab · 3×/day', doctor: 'Dr. Sow',    endsOnLabel: '4 days left' },
     { id: '2', medication: 'Ibuprofen 200 mg',   dosage: 'As needed',      doctor: 'Dr. Diallo', endsOnLabel: 'Refill soon' }

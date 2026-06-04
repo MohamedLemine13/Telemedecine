@@ -31,7 +31,7 @@ import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
       :host ::ng-deep app-sidebar-nav .sidebar { display: none; }
     }
     .main { display: flex; flex-direction: column; min-width: 0; }
-    .content { flex: 1; padding: 24px; }
+    .content { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 28px 32px; }
   `
 })
 export class AdminShell {

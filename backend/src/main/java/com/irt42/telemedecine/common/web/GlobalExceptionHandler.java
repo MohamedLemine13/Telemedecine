@@ -13,6 +13,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
@@ -88,6 +89,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handle(NoResourceFoundException e, HttpServletRequest req) {
         return error(HttpStatus.NOT_FOUND, "Not found", "No resource matches " + req.getRequestURI(), req, null);
+    }
+
+    /**
+     * Services throw {@link ResponseStatusException} for expected domain errors
+     * (404 not-found, 409 conflict, 403 forbidden, …). Honour the status they
+     * chose instead of letting the fallback turn everything into 500.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handle(ResponseStatusException e, HttpServletRequest req) {
+        HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
+        if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
+        String detail = e.getReason() != null ? e.getReason() : status.getReasonPhrase();
+        return error(status, status.getReasonPhrase(), detail, req, null);
     }
 
     @ExceptionHandler(Exception.class)

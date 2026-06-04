@@ -86,13 +86,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  color: var(--color-primary-700);
-  text-decoration: none;
-}
+/* Base element styles live in @layer base so Tailwind utilities (which sit in a
+   higher cascade layer) can override them. Without this, the unlayered `a` rule
+   would beat any `text-*` colour utility on a link — e.g. a white CTA on a blue
+   button would render blue-on-blue and look textless. */
+@layer base {
+  a {
+    color: var(--color-primary-700);
+    text-decoration: none;
+  }
 
-a:hover {
-  color: var(--color-primary-500);
+  a:hover {
+    color: var(--color-primary-500);
+  }
 }
 
 /* Focus ring — applied to focusable controls unless overridden. */

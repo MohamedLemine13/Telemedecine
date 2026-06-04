@@ -27,7 +27,7 @@ interface QueueEntry {
         }
       }
       <a actions routerLink="/doctor/agenda"
-         class="inline-flex items-center gap-2 rounded-[var(--radius-input)] bg-[color:var(--color-primary-700)] px-4 h-10 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-500)]">
+         class="inline-flex items-center gap-2 rounded-[var(--radius-input)] bg-[color:var(--color-primary-700)] px-4 h-10 text-sm font-semibold text-[color:var(--color-neutral-0)] hover:bg-[color:var(--color-primary-500)]">
         Open agenda →
       </a>
     </app-page-header>
@@ -76,7 +76,8 @@ interface QueueEntry {
           </tbody>
         </table>
         <p class="mt-3 text-xs italic text-[color:var(--color-neutral-500)]">
-          Mock queue — real appointments + queue lands in Phase 3.
+          Sample queue — your real bookings live on the
+          <a routerLink="/doctor/agenda" class="text-[color:var(--color-primary-700)] hover:underline">agenda</a>.
         </p>
       </app-card>
 

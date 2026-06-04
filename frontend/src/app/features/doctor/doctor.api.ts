@@ -81,6 +81,10 @@ export class DoctorApi {
     return this.http.get<SpecialtyDto[]>(`${this.base}/specialties`);
   }
 
+  getById(id: string): Observable<DoctorProfileDto> {
+    return this.http.get<DoctorProfileDto>(`${this.base}/${id}`);
+  }
+
   getMine(): Observable<DoctorProfileDto> {
     return this.http.get<DoctorProfileDto>(`${this.base}/me`);
   }
