@@ -46,7 +46,11 @@ services:
     image: livekit/livekit-server:latest
     container_name: telemed-livekit
     restart: unless-stopped
-    command: --config /etc/livekit.yaml
+    # --node-ip is the IP LiveKit advertises in ICE candidates for media. It
+    # MUST be an address the clients can reach: 127.0.0.1 for same-machine only,
+    # or this PC's LAN IP so phones/other computers on the network can receive
+    # the WebRTC streams (the 50000-50100/udp range is published to the host).
+    command: --config /etc/livekit.yaml --node-ip ${HOST_LAN_IP:-127.0.0.1}
     ports:
       - "7880:7880"
       - "7881:7881"
@@ -76,6 +80,10 @@ services:
       MAIL_PORT: 1025
       STORAGE_ROOT: /app/uploads
       LIVEKIT_URL: ws://livekit:7880
+      # public-url = how the *browser/phone* reaches LiveKit (handed back in the
+      # join response). Defaults to localhost for same-machine use; set
+      # LIVEKIT_PUBLIC_URL=ws://<LAN-ip>:7880 in .env for network access.
+      LIVEKIT_PUBLIC_URL: ${LIVEKIT_PUBLIC_URL:-ws://localhost:7880}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret-min-32-chars-aaaaaaaaaaaaaa}
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-please-replace-with-a-long-random-string}
@@ -98,6 +106,45 @@ services:
         condition: service_started
     ports:
       - "4200:80"
+
+  # ─── Mobile (one-shot APK builder) ──────────────────────────────────────────
+  # Not part of the running stack — only built on demand under the `mobile`
+  # profile. Generates the Flutter scaffold + builds a debug APK entirely in the
+  # container, dropping it into ./mobile/dist.
+  #
+  #   docker compose --profile mobile run --rm mobile-build
+  #
+  # Set MOBILE_API_BASE_URL to where the phone can reach the backend
+  # (http://10.0.2.2:8080 for the Android emulator, http://<LAN-ip>:8080 for a
+  # real device).
+  mobile-build:
+    profiles: ["mobile"]
+    build:
+      context: ./mobile
+      dockerfile: ../infra/docker/flutter.Dockerfile
+      args:
+        API_BASE_URL: ${MOBILE_API_BASE_URL:-http://10.0.2.2:8080}
+    image: telemedecine/mobile-build:dev
+    volumes:
+      - ./mobile/dist:/out
+
+  # ─── Mobile app as a website (Flutter web) ──────────────────────────────────
+  # The same patient app compiled for the browser — no phone/emulator needed.
+  #   docker compose --profile mobile-web up -d --build mobile-web
+  #   → http://localhost:4300
+  mobile-web:
+    profiles: ["mobile-web"]
+    build:
+      context: ./mobile
+      dockerfile: ../infra/docker/flutter-web.Dockerfile
+    image: telemedecine/mobile-web:dev
+    container_name: telemed-mobile-web
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "4300:80"
 
 volumes:
   postgres-data:

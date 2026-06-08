@@ -73,3 +73,26 @@ livekit-data/
 .github
 DESIGN.md
 SECURITY.md
+
+# ─── Flutter mobile app ───────────────────────────────────────────────────────
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/build/
+mobile/dist/*.apk
+mobile/ios/
+mobile/web/
+mobile/linux/
+mobile/macos/
+mobile/windows/
+# The Android platform dir is generated in Docker by `flutter create`; only the
+# permission/cleartext manifest overlay is tracked.
+mobile/android/*
+!mobile/android/app
+mobile/android/app/*
+!mobile/android/app/src
+mobile/android/app/src/*
+!mobile/android/app/src/main
+mobile/android/app/src/main/*
+!mobile/android/app/src/main/AndroidManifest.xml

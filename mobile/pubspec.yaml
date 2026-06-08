@@ -1,0 +1,31 @@
+name: telemed_mobile
+description: Telemedecine patient mobile app (Flutter). Core loop — auth, doctor
+  search, booking, live video consultation + chat. Talks to the existing Spring
+  Boot API over REST + LiveKit.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # HTTP with interceptors (bearer attach + refresh-on-401).
+  dio: ^5.4.0
+  # Token storage (Keystore-backed on Android).
+  flutter_secure_storage: ^9.2.2
+  # Lightweight state management — one ChangeNotifier per concern.
+  provider: ^6.1.2
+  # WebRTC video via the self-hosted LiveKit server.
+  livekit_client: ^2.2.0
+  # Runtime camera/mic permission prompts.
+  permission_handler: ^11.3.1
+  # Date/number formatting.
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
