@@ -17,7 +17,6 @@ class TelemedApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // One authenticated client, shared by every service.
     final api = ApiClient(auth);
     return MultiProvider(
       providers: [
@@ -38,7 +37,6 @@ class TelemedApp extends StatelessWidget {
   }
 }
 
-/// Swaps between the login screen and the home shell based on auth state.
 class _Gate extends StatelessWidget {
   const _Gate();
 
@@ -46,8 +44,63 @@ class _Gate extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
     if (!auth.ready) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
-    return auth.isLoggedIn ? const HomeShell() : const LoginScreen();
+    if (!auth.isLoggedIn) return const LoginScreen();
+    // Doctors and admins must use the web app – this app is patient-only.
+    if (!auth.isPatient) return const _WrongRoleScreen();
+    return const HomeShell();
+  }
+}
+
+class _WrongRoleScreen extends StatelessWidget {
+  const _WrongRoleScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.lock_person_outlined,
+                      size: 44, color: Color(0xFFB45309)),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Patient app only',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'This app is for patients only.\nDoctors and admins should use the web portal.',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 14, height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                FilledButton.icon(
+                  onPressed: () => context.read<AuthStore>().logout(),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Sign out'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -15,9 +15,6 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
-
-  // Rebuilt key per tab so pull-to-refresh / fresh fetch happens on revisit
-  // of the appointments tab after booking.
   final _appointmentsKey = GlobalKey<AppointmentsScreenState>();
 
   late final List<Widget> _tabs = [
@@ -40,23 +37,29 @@ class _HomeShellState extends State<HomeShell> {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         indicatorColor: Palette.primaryTint,
+        backgroundColor: Colors.white,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
           NavigationDestination(
-              icon: Icon(Icons.event_outlined),
-              selectedIcon: Icon(Icons.event),
-              label: 'Appointments'),
+            icon: Icon(Icons.event_outlined),
+            selectedIcon: Icon(Icons.event, color: Palette.primary),
+            label: 'Appointments',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.search_outlined),
-              selectedIcon: Icon(Icons.search),
-              label: 'Find a doctor'),
+            icon: Icon(Icons.search_outlined),
+            selectedIcon: Icon(Icons.search, color: Palette.primary),
+            label: 'Doctors',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.description_outlined),
-              selectedIcon: Icon(Icons.description),
-              label: 'Prescriptions'),
+            icon: Icon(Icons.description_outlined),
+            selectedIcon: Icon(Icons.description, color: Palette.primary),
+            label: 'Records',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile'),
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: Palette.primary),
+            label: 'Profile',
+          ),
         ],
       ),
     );

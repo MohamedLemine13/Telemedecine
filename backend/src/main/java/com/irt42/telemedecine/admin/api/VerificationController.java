@@ -4,6 +4,9 @@ import com.irt42.telemedecine.admin.api.dto.DecisionRequest;
 import com.irt42.telemedecine.admin.api.dto.VerificationCaseDto;
 import com.irt42.telemedecine.admin.application.VerificationService;
 import com.irt42.telemedecine.admin.domain.VerificationCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
@@ -38,7 +41,8 @@ public class VerificationController {
         return service.get(id);
     }
 
-    /** Streams the credential file inline (PDF / image) for review. */
+    @Operation(summary = "Download credential file")
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = "application/octet-stream"))
     @GetMapping("/{id}/credentials/{credentialId}/download")
     public ResponseEntity<org.springframework.core.io.Resource> download(@PathVariable UUID id,
                                                                          @PathVariable UUID credentialId) {

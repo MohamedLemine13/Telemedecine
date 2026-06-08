@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -5,13 +7,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'config.dart';
 import 'models.dart';
 
-/// Single source of truth for authentication. Holds the token pair in memory
-/// and persists it to the platform keystore so the session survives restarts.
-///
-/// Auth endpoints (`/api/auth/*`) are called through a bare [Dio] with no
-/// bearer interceptor — login/signup are public and refresh carries the refresh
-/// token in the body — which keeps this class free of any dependency cycle with
-/// the authenticated [Dio].
 class AuthStore extends ChangeNotifier {
   AuthStore() : _raw = Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl)) {
     _raw.options.validateStatus = (s) => s != null && s < 500;
@@ -25,44 +20,44 @@ class AuthStore extends ChangeNotifier {
 
   String? _accessToken;
   String? _refreshToken;
+  List<String> _roles = [];
   bool _ready = false;
 
   String? get accessToken => _accessToken;
   String? get refreshToken => _refreshToken;
+  List<String> get roles => _roles;
 
-  /// True once [bootstrap] has restored (or confirmed absence of) a session.
   bool get ready => _ready;
   bool get isLoggedIn => _accessToken != null;
+  bool get isPatient => _roles.contains('ROLE_PATIENT');
+  bool get isDoctor => _roles.contains('ROLE_DOCTOR');
+  bool get isAdmin => _roles.contains('ROLE_ADMIN');
 
-  /// Load any persisted tokens at app start. On a Linux desktop with no system
-  /// keyring (Secret Service), reads throw — we swallow that and start logged
-  /// out rather than crashing.
   Future<void> bootstrap() async {
     try {
       _accessToken = await _storage.read(key: _kAccess);
       _refreshToken = await _storage.read(key: _kRefresh);
+      if (_accessToken != null) _roles = _parseRoles(_accessToken!);
     } catch (_) {
       _accessToken = null;
       _refreshToken = null;
+      _roles = [];
     }
     _ready = true;
     notifyListeners();
   }
 
   Future<void> _persist(TokenPair t) async {
-    // Keep tokens in memory unconditionally so the session works even when the
-    // platform has no secure storage backend (e.g. a keyring-less desktop).
     _accessToken = t.accessToken;
     _refreshToken = t.refreshToken;
+    _roles = _parseRoles(t.accessToken);
     try {
       await _storage.write(key: _kAccess, value: t.accessToken);
       await _storage.write(key: _kRefresh, value: t.refreshToken);
-    } catch (_) {/* no keyring — tokens live for this session only */}
+    } catch (_) {}
     notifyListeners();
   }
 
-  /// Returns null on success, otherwise a human-readable error.
-  /// A non-null [LoginResult] with `tfaRequired` is surfaced via [pendingTfa].
   String? pendingTfa;
 
   Future<String?> login(String email, String password) async {
@@ -71,14 +66,12 @@ class AuthStore extends ChangeNotifier {
         'email': email,
         'password': password,
       });
-      if (res.statusCode != 200) {
-        return _detail(res) ?? 'Invalid email or password.';
-      }
+      if (res.statusCode != 200) return _detail(res) ?? 'Invalid email or password.';
       final result = LoginResult.fromJson(res.data as Map<String, dynamic>);
       if (result.tfaRequired) {
         pendingTfa = result.tfaChallengeToken;
         notifyListeners();
-        return null; // caller routes to the 2FA screen
+        return null;
       }
       await _persist(result.tokens!);
       return null;
@@ -121,8 +114,6 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
-  /// Exchange the refresh token for a fresh pair. Returns true on success.
-  /// Used by the authenticated client's 401 interceptor.
   Future<bool> refresh() async {
     final rt = _refreshToken;
     if (rt == null) return false;
@@ -143,17 +134,36 @@ class AuthStore extends ChangeNotifier {
     final rt = _refreshToken;
     _accessToken = null;
     _refreshToken = null;
+    _roles = [];
     pendingTfa = null;
     try {
       await _storage.delete(key: _kAccess);
       await _storage.delete(key: _kRefresh);
-    } catch (_) {/* no keyring — nothing persisted to clear */}
+    } catch (_) {}
     notifyListeners();
     if (rt != null) {
       try {
         await _raw.post('/api/auth/logout', data: {'refreshToken': rt});
-      } catch (_) {/* best-effort */}
+      } catch (_) {}
     }
+  }
+
+  // Decode JWT payload and extract roles – no crypto lib needed, server already
+  // validated the token; we just read the claims.
+  static List<String> _parseRoles(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length < 2) return [];
+      var payload = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      final claims =
+          jsonDecode(utf8.decode(base64.decode(payload))) as Map<String, dynamic>;
+      final raw = claims['roles'];
+      if (raw is List) return raw.map((e) => e.toString()).toList();
+    } catch (_) {}
+    return [];
   }
 
   static String? _detail(Response res) {
@@ -164,5 +174,5 @@ class AuthStore extends ChangeNotifier {
   }
 
   static String _network(DioException e) =>
-      'Cannot reach the server. Check that the backend is running and the API URL is correct.\n(${e.message})';
+      'Cannot reach the server. Check that the backend is running.\n(${e.message})';
 }

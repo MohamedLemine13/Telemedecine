@@ -222,7 +222,9 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
         .on(RoomEvent.ParticipantDisconnected, () => this.refreshRemotePresence())
         .on(RoomEvent.Disconnected, () => { if (this.phase() === 'live') this.remoteConnected.set(false); });
 
-      await room.connect(j.livekitUrl, j.token);
+      const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const livekitUrl = `${wsProto}://${window.location.host}/lk`;
+      await room.connect(livekitUrl, j.token);
 
       if (j.mode === 'VIDEO') {
         await room.localParticipant.enableCameraAndMicrophone();
@@ -234,6 +236,7 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
       this.refreshRemotePresence();
       room.startAudio().catch(() => { /* autoplay may need a click; harmless */ });
     } catch (e: any) {
+      console.log(this.videoError());
       this.videoError.set(e?.message ?? 'Camera/microphone or network unavailable.');
     }
   }
