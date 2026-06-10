@@ -53,6 +53,11 @@ export interface TfaVerifyRequest {
   code: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 /**
  * Thin HTTP wrapper around the backend's /api/auth/* endpoints.
  * All Observables emit on success and throw the backend's RFC-7807 `ApiError`
@@ -97,6 +102,11 @@ export class AuthApi {
 
   disableTfa(req: TfaVerifyRequest): Observable<void> {
     return this.http.post<void>(`${this.base}/2fa/disable`, req);
+  }
+
+  /** Changes the signed-in user's password; the backend revokes refresh tokens. */
+  changePassword(req: ChangePasswordRequest): Observable<void> {
+    return this.http.post<void>(`${this.base}/password/change`, req);
   }
 
   private skipAuth() {

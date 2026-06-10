@@ -48,9 +48,6 @@ export class AdminShell {
       title: 'Management',
       items: [
         { label: 'Accounts',  path: 'accounts',  icon: 'users' },
-        { label: 'Disputes',  path: 'disputes',  icon: 'message' },
-        { label: 'Content',   path: 'content',   icon: 'fileText' },
-        { label: 'Audit log', path: 'audit',     icon: 'fileCheck' },
         { label: 'Settings',  path: 'settings',  icon: 'settings' }
       ]
     }

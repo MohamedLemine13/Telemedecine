@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../appointments/appointments_screen.dart';
 import '../doctors/doctors_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../prescriptions/prescriptions_screen.dart';
 import '../profile/profile_screen.dart';
 import '../theme.dart';
@@ -21,6 +22,7 @@ class _HomeShellState extends State<HomeShell> {
     AppointmentsScreen(key: _appointmentsKey),
     DoctorsScreen(onBooked: _goToAppointments),
     const PrescriptionsScreen(),
+    const NotificationsScreen(),
     const ProfileScreen(),
   ];
 
@@ -54,6 +56,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.description_outlined),
             selectedIcon: Icon(Icons.description, color: Palette.primary),
             label: 'Records',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.notifications_outlined),
+            selectedIcon: Icon(Icons.notifications, color: Palette.primary),
+            label: 'Alerts',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

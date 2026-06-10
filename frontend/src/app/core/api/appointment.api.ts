@@ -62,6 +62,15 @@ export interface Page<T> {
   size: number;
 }
 
+export interface DoctorPatientDto {
+  patientId: string;
+  name: string;
+  email: string;
+  appointmentCount: number;
+  lastVisitAt: string | null;
+  nextAppointmentAt: string | null;
+}
+
 /**
  * Appointment booking + doctor availability. Shared by the patient and doctor
  * spaces — the backend scopes every call to the authenticated participant.
@@ -75,6 +84,11 @@ export class AppointmentApi {
   // ── Appointments ──────────────────────────────────────────────────────────
   book(req: BookAppointmentRequest): Observable<AppointmentDto> {
     return this.http.post<AppointmentDto>(this.base, req);
+  }
+
+  /** Doctor's distinct patients, aggregated from their appointments. */
+  myPatients(): Observable<DoctorPatientDto[]> {
+    return this.http.get<DoctorPatientDto[]>(`${this.base}/patients`);
   }
 
   list(params: { status?: AppointmentStatus; from?: string; to?: string; page?: number; size?: number } = {}):

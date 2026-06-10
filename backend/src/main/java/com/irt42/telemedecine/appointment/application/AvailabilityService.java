@@ -6,6 +6,7 @@ import com.irt42.telemedecine.appointment.api.dto.SlotDto;
 import com.irt42.telemedecine.appointment.domain.DoctorAvailability;
 import com.irt42.telemedecine.appointment.infrastructure.AppointmentRepository;
 import com.irt42.telemedecine.appointment.infrastructure.DoctorAvailabilityRepository;
+import com.irt42.telemedecine.auth.infrastructure.AccountRepository;
 import com.irt42.telemedecine.doctor.domain.DoctorProfile;
 import com.irt42.telemedecine.doctor.infrastructure.DoctorProfileRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,35 +40,46 @@ public class AvailabilityService {
     private final DoctorAvailabilityRepository availability;
     private final AppointmentRepository appointments;
     private final DoctorProfileRepository doctors;
+    private final AccountRepository accounts;
     private final ZoneId clinicZone;
 
     public AvailabilityService(DoctorAvailabilityRepository availability,
                                AppointmentRepository appointments,
                                DoctorProfileRepository doctors,
+                               AccountRepository accounts,
                                @Value("${telemedecine.clinic.zone:Africa/Nouakchott}") String clinicZone) {
         this.availability = availability;
         this.appointments = appointments;
         this.doctors = doctors;
+        this.accounts = accounts;
         this.clinicZone = ZoneId.of(clinicZone);
     }
 
     // ── Doctor self-service: read + replace availability ───────────────────────
     @Transactional(readOnly = true)
     public List<AvailabilityDto> listMine(UUID accountId) {
-        DoctorProfile d = loadDoctor(accountId);
-        return availability.findByDoctorIdOrderByDayOfWeekAscStartTimeAsc(d.getId())
-            .stream().map(AvailabilityDto::from).toList();
+        // A doctor who has not touched their profile yet simply has no blocks.
+        return doctors.findByAccountId(accountId)
+            .map(d -> availability.findByDoctorIdOrderByDayOfWeekAscStartTimeAsc(d.getId())
+                .stream().map(AvailabilityDto::from).toList())
+            .orElseGet(List::of);
     }
 
     @Transactional
     public List<AvailabilityDto> replaceMine(UUID accountId, SetAvailabilityRequest req) {
-        DoctorProfile d = loadDoctor(accountId);
+        DoctorProfile d = loadOrCreateDoctor(accountId);
         for (SetAvailabilityRequest.Block b : req.blocks()) {
             if (!b.endTime().isAfter(b.startTime())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "End time must be after start time for day " + b.dayOfWeek());
+                    "End time must be after start time for " + dayName(b.dayOfWeek()));
+            }
+            if (b.startTime().plusMinutes(b.slotMinutes()).isAfter(b.endTime())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "The " + dayName(b.dayOfWeek()) + " block is shorter than one "
+                        + b.slotMinutes() + "-minute slot");
             }
         }
+        rejectOverlaps(req.blocks());
         // Full replacement: drop the old set, insert the new one.
         availability.deleteByDoctorId(d.getId());
         availability.flush();
@@ -152,10 +164,44 @@ public class AvailabilityService {
                 "That time is not available. Please pick another slot."));
     }
 
-    private DoctorProfile loadDoctor(UUID accountId) {
-        return doctors.findByAccountId(accountId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                "Complete your doctor profile before setting availability"));
+    /**
+     * Saving an agenda must work even before the doctor has filled in their
+     * profile page, so create the (empty) profile row on first use — same
+     * behaviour as DoctorService.getOrCreateMine.
+     */
+    private DoctorProfile loadOrCreateDoctor(UUID accountId) {
+        return doctors.findByAccountId(accountId).orElseGet(() -> {
+            DoctorProfile np = new DoctorProfile();
+            np.setAccount(accounts.findById(accountId)
+                .orElseThrow(notFound("Account not found")));
+            return doctors.save(np);
+        });
+    }
+
+    /** Two blocks on the same weekday must not overlap — surfaced as a clear 400. */
+    private static void rejectOverlaps(List<SetAvailabilityRequest.Block> blocks) {
+        List<SetAvailabilityRequest.Block> sorted = blocks.stream()
+            .sorted((a, b) -> {
+                int c = Integer.compare(a.dayOfWeek(), b.dayOfWeek());
+                return c != 0 ? c : a.startTime().compareTo(b.startTime());
+            })
+            .toList();
+        for (int i = 1; i < sorted.size(); i++) {
+            SetAvailabilityRequest.Block prev = sorted.get(i - 1);
+            SetAvailabilityRequest.Block cur = sorted.get(i);
+            if (prev.dayOfWeek() == cur.dayOfWeek()
+                && cur.startTime().isBefore(prev.endTime())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Blocks " + prev.startTime() + "–" + prev.endTime() + " and "
+                        + cur.startTime() + "–" + cur.endTime() + " overlap on "
+                        + dayName(cur.dayOfWeek()));
+            }
+        }
+    }
+
+    private static String dayName(int dayOfWeek) {
+        return java.time.DayOfWeek.of(dayOfWeek)
+            .getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH);
     }
 
     private static Supplier<ResponseStatusException> notFound(String msg) {

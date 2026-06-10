@@ -150,6 +150,23 @@ public class AuthService {
         totp.disable(account);
     }
 
+    // ── Password change (signed-in user) ─────────────────────────────────────
+    /**
+     * Verify the current password, store the new hash, and revoke every active
+     * refresh token — other devices fall out of session within one access-token
+     * TTL. The caller's client should send the user back through login.
+     */
+    @Transactional
+    public void changePassword(UUID accountId, String currentPassword, String newPassword) {
+        Account account = accounts.findById(accountId).orElseThrow(AuthErrors.InvalidCredentials::new);
+        if (account.getPasswordHash() == null
+            || !passwordEncoder.matches(currentPassword, account.getPasswordHash())) {
+            throw new AuthErrors.InvalidCredentials();
+        }
+        account.setPasswordHash(passwordEncoder.encode(newPassword));
+        refreshTokens.revokeAll(account);
+    }
+
     // ── Internal helpers ────────────────────────────────────────────────────
     private Tokens issueTokens(Account account) {
         return new Tokens(

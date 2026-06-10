@@ -3,6 +3,7 @@ package com.irt42.telemedecine.appointment.api;
 import com.irt42.telemedecine.appointment.api.dto.AppointmentDto;
 import com.irt42.telemedecine.appointment.api.dto.BookAppointmentRequest;
 import com.irt42.telemedecine.appointment.api.dto.CancelRequest;
+import com.irt42.telemedecine.appointment.api.dto.DoctorPatientDto;
 import com.irt42.telemedecine.appointment.api.dto.RescheduleRequest;
 import com.irt42.telemedecine.appointment.application.AppointmentService;
 import com.irt42.telemedecine.appointment.domain.Appointment;
@@ -16,6 +17,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -79,6 +81,17 @@ public class AppointmentController {
     @PreAuthorize("hasRole('DOCTOR')")
     public AppointmentDto complete(JwtAuthenticationToken jwt, @PathVariable UUID id) {
         return service.complete(subject(jwt), id);
+    }
+
+    /**
+     * Distinct patients the doctor has seen (or will see), with per-patient
+     * stats — the "My patients" screen. Declared before the {@code /{id}}
+     * mapping cannot shadow it because "patients" is not a UUID.
+     */
+    @GetMapping("/patients")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public List<DoctorPatientDto> myPatients(JwtAuthenticationToken jwt) {
+        return service.listPatientsForDoctor(subject(jwt));
     }
 
     private static boolean hasRole(JwtAuthenticationToken jwt, String role) {

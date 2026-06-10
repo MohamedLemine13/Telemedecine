@@ -1,5 +1,6 @@
 package com.irt42.telemedecine.auth.api;
 
+import com.irt42.telemedecine.auth.api.dto.ChangePasswordRequest;
 import com.irt42.telemedecine.auth.api.dto.LoginRequest;
 import com.irt42.telemedecine.auth.api.dto.LoginResponse;
 import com.irt42.telemedecine.auth.api.dto.RefreshRequest;
@@ -100,6 +101,14 @@ public class AuthController {
     public ResponseEntity<Void> disableTfa(JwtAuthenticationToken authn,
                                            @RequestBody @Valid TfaVerifyRequest req) {
         auth.disableTfa(subject(authn), req.code());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Change the signed-in user's password (revokes all refresh tokens). */
+    @PostMapping("/password/change")
+    public ResponseEntity<Void> changePassword(JwtAuthenticationToken authn,
+                                               @RequestBody @Valid ChangePasswordRequest req) {
+        auth.changePassword(subject(authn), req.currentPassword(), req.newPassword());
         return ResponseEntity.noContent().build();
     }
 

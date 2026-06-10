@@ -6,6 +6,7 @@ import 'core/auth_store.dart';
 import 'services/appointment_service.dart';
 import 'services/consultation_service.dart';
 import 'services/doctor_service.dart';
+import 'services/notification_service.dart';
 import 'services/patient_service.dart';
 import 'ui/auth/login_screen.dart';
 import 'ui/home/home_shell.dart';
@@ -26,6 +27,7 @@ class TelemedApp extends StatelessWidget {
         Provider(create: (_) => AppointmentService(api)),
         Provider(create: (_) => ConsultationService(api)),
         Provider(create: (_) => PatientService(api)),
+        Provider(create: (_) => NotificationService(api)),
       ],
       child: MaterialApp(
         title: 'Telemedecine',

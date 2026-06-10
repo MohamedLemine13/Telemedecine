@@ -17,6 +17,7 @@ export type { IconName } from './icons';
 export { SidebarNav } from './sidebar-nav/sidebar-nav';
 export type { NavItem, NavGroup } from './sidebar-nav/sidebar-nav';
 export { Topbar } from './topbar/topbar';
+export { NotificationBell } from './notification-bell/notification-bell';
 export { PageHeader } from './page-header/page-header';
 export { StatusBadge } from './status-badge/status-badge';
 export type { StatusVariant } from './status-badge/status-badge';

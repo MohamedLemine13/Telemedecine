@@ -1,5 +1,4 @@
 import { Routes } from '@angular/router';
-import { ComingSoon } from '../../shared/route-stub/coming-soon';
 
 export const patientRoutes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -33,16 +32,24 @@ export const patientRoutes: Routes = [
     loadComponent: () => import('./appointments/appointments-list').then(m => m.PatientAppointments),
     data: { title: 'My appointments' }
   },
-  // ── Coming in Phase 3+ ──
   {
     path: 'consultations/:appointmentId',
     loadComponent: () => import('../consultation/video-consultation-room').then(m => m.VideoConsultationRoom),
     data: { title: 'Consultation' }
   },
-  { path: 'appointments/:id',   component: ComingSoon, data: { title: 'Appointment detail', phase: 'Phase 5' } },
-  { path: 'prescriptions',      component: ComingSoon, data: { title: 'Prescriptions',      phase: 'Phase 5' } },
-  { path: 'prescriptions/:id',  component: ComingSoon, data: { title: 'Prescription',       phase: 'Phase 5' } },
-  { path: 'messages',           component: ComingSoon, data: { title: 'Messages',           phase: 'Phase 4' } },
-  { path: 'messages/:threadId', component: ComingSoon, data: { title: 'Message thread',     phase: 'Phase 4' } },
-  { path: 'payments',           component: ComingSoon, data: { title: 'Payments',           phase: 'Phase 5' } }
+  {
+    path: 'prescriptions',
+    loadComponent: () => import('./prescriptions/prescriptions-list').then(m => m.PatientPrescriptions),
+    data: { title: 'Prescriptions' }
+  },
+  {
+    path: 'messages',
+    loadComponent: () => import('../messaging/messages-page').then(m => m.MessagesPage),
+    data: { title: 'Messages' }
+  },
+  {
+    path: 'payments',
+    loadComponent: () => import('./payments/payments-page').then(m => m.PatientPayments),
+    data: { title: 'Payments' }
+  }
 ];

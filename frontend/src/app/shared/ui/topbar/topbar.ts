@@ -1,6 +1,7 @@
 import { Component, input } from '@angular/core';
 
 import { Icon } from '../icon/icon';
+import { NotificationBell } from '../notification-bell/notification-bell';
 import { UserMenu } from '../user-menu/user-menu';
 
 /**
@@ -16,7 +17,7 @@ import { UserMenu } from '../user-menu/user-menu';
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [Icon, UserMenu],
+  imports: [Icon, NotificationBell, UserMenu],
   template: `
     <header class="topbar">
       <div class="left">
@@ -35,10 +36,7 @@ import { UserMenu } from '../user-menu/user-menu';
 
       <div class="right">
         <ng-content select="[topbar-actions]" />
-        <button type="button" class="icon-btn" aria-label="Notifications">
-          <app-icon name="bell" [size]="18" />
-          <span class="dot" aria-hidden="true"></span>
-        </button>
+        <app-notification-bell />
         <app-user-menu />
       </div>
     </header>

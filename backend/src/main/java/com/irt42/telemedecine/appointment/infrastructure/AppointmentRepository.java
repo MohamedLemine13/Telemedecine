@@ -56,4 +56,18 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
                                     @Param("from") Instant from,
                                     @Param("to") Instant to,
                                     Pageable pageable);
+
+    /** Completed appointments per side — invoice generation walks these. */
+    List<Appointment> findByPatientAccountIdAndStatus(UUID accountId, Appointment.Status status);
+
+    List<Appointment> findByDoctorAccountIdAndStatus(UUID accountId, Appointment.Status status);
+
+    /** Everything a doctor ever had with anyone — the "My patients" view aggregates this. */
+    List<Appointment> findByDoctorAccountIdOrderByStartAtDesc(UUID accountId);
+
+    long countByStatus(Appointment.Status status);
+
+    /** Raw start instants since a point in time — grouped per day in the metrics service. */
+    @Query("select a.startAt from Appointment a where a.startAt >= :from")
+    List<Instant> startsSince(@Param("from") Instant from);
 }

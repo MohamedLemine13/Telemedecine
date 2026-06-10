@@ -2,14 +2,18 @@ package com.irt42.telemedecine.appointment.application;
 
 import com.irt42.telemedecine.appointment.api.dto.AppointmentDto;
 import com.irt42.telemedecine.appointment.api.dto.BookAppointmentRequest;
+import com.irt42.telemedecine.appointment.api.dto.DoctorPatientDto;
 import com.irt42.telemedecine.appointment.api.dto.SlotDto;
 import com.irt42.telemedecine.appointment.domain.Appointment;
 import com.irt42.telemedecine.appointment.infrastructure.AppointmentRepository;
 import com.irt42.telemedecine.auth.infrastructure.AccountRepository;
 import com.irt42.telemedecine.doctor.domain.DoctorProfile;
 import com.irt42.telemedecine.doctor.infrastructure.DoctorProfileRepository;
+import com.irt42.telemedecine.notification.application.NotificationService;
+import com.irt42.telemedecine.notification.domain.Notification;
 import com.irt42.telemedecine.patient.domain.PatientProfile;
 import com.irt42.telemedecine.patient.infrastructure.PatientProfileRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -35,17 +45,23 @@ public class AppointmentService {
     private final DoctorProfileRepository doctors;
     private final PatientProfileRepository patients;
     private final AccountRepository accounts;
+    private final NotificationService notifications;
+    private final ZoneId clinicZone;
 
     public AppointmentService(AppointmentRepository appointments,
                               AvailabilityService availabilityService,
                               DoctorProfileRepository doctors,
                               PatientProfileRepository patients,
-                              AccountRepository accounts) {
+                              AccountRepository accounts,
+                              NotificationService notifications,
+                              @Value("${telemedecine.clinic.zone:Africa/Nouakchott}") String clinicZone) {
         this.appointments = appointments;
         this.availabilityService = availabilityService;
         this.doctors = doctors;
         this.patients = patients;
         this.accounts = accounts;
+        this.notifications = notifications;
+        this.clinicZone = ZoneId.of(clinicZone);
     }
 
     // ── Book (patient) ─────────────────────────────────────────────────────────
@@ -67,7 +83,17 @@ public class AppointmentService {
         a.setReason(req.reason());
         a.setStatus(Appointment.Status.SCHEDULED);
 
-        return AppointmentDto.from(saveGuardingSlot(a));
+        Appointment saved = saveGuardingSlot(a);
+        String when = formatSlot(saved.getStartAt());
+        notifications.notify(patientAccountId, Notification.Type.APPOINTMENT_BOOKED,
+            "Appointment confirmed",
+            "Your appointment with " + doctorName(doctor) + " is booked for " + when + ".",
+            "/patient/appointments");
+        notifications.notify(doctor.getAccount().getId(), Notification.Type.APPOINTMENT_BOOKED,
+            "New appointment",
+            patientName(patient) + " booked " + when + " (" + saved.getMode() + ").",
+            "/doctor/agenda");
+        return AppointmentDto.from(saved);
     }
 
     // ── List ───────────────────────────────────────────────────────────────────
@@ -113,7 +139,11 @@ public class AppointmentService {
         SlotDto slot = availabilityService.requireFreeSlot(a.getDoctor().getId(), newStart);
         a.setStartAt(slot.startAt());
         a.setEndAt(slot.endAt());
-        return AppointmentDto.from(saveGuardingSlot(a));
+        Appointment saved = saveGuardingSlot(a);
+        notifyCounterpart(accountId, saved, Notification.Type.APPOINTMENT_RESCHEDULED,
+            "Appointment rescheduled",
+            "The appointment was moved to " + formatSlot(saved.getStartAt()) + ".");
+        return AppointmentDto.from(saved);
     }
 
     // ── Cancel (either party) ───────────────────────────────────────────────────
@@ -127,6 +157,10 @@ public class AppointmentService {
         a.setStatus(Appointment.Status.CANCELLED);
         a.setCancelReason(reason);
         a.setCancelledBy(isDoctor(accountId, a) ? Appointment.Party.DOCTOR : Appointment.Party.PATIENT);
+        notifyCounterpart(accountId, a, Notification.Type.APPOINTMENT_CANCELLED,
+            "Appointment cancelled",
+            "The appointment of " + formatSlot(a.getStartAt()) + " was cancelled"
+                + (reason == null || reason.isBlank() ? "." : ": " + reason));
         return AppointmentDto.from(a);
     }
 
@@ -141,10 +175,74 @@ public class AppointmentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only scheduled appointments can be completed");
         }
         a.setStatus(Appointment.Status.COMPLETED);
+        notifications.notify(a.getPatient().getAccount().getId(), Notification.Type.SYSTEM,
+            "Consultation completed",
+            "Your consultation with " + doctorName(a.getDoctor())
+                + " is complete. The invoice is available under Payments.",
+            "/patient/payments");
         return AppointmentDto.from(a);
     }
 
+    // ── My patients (doctor) ─────────────────────────────────────────────────────
+    /**
+     * Distinct patients the doctor has ever had an appointment with, plus
+     * simple per-patient stats. Aggregated in memory — a doctor's appointment
+     * history is small at this project's scale.
+     */
+    @Transactional(readOnly = true)
+    public List<DoctorPatientDto> listPatientsForDoctor(UUID doctorAccountId) {
+        Instant now = Instant.now();
+        Map<UUID, DoctorPatientDto.Builder> byPatient = new LinkedHashMap<>();
+        for (Appointment a : appointments.findByDoctorAccountIdOrderByStartAtDesc(doctorAccountId)) {
+            PatientProfile p = a.getPatient();
+            DoctorPatientDto.Builder b = byPatient.computeIfAbsent(p.getId(), id ->
+                new DoctorPatientDto.Builder(id, patientName(p), p.getAccount().getEmail()));
+            b.total++;
+            if (a.getStatus() == Appointment.Status.CANCELLED) continue;
+            if (a.getStartAt().isBefore(now)) {
+                if (b.lastVisit == null || a.getStartAt().isAfter(b.lastVisit)) b.lastVisit = a.getStartAt();
+            } else if (a.getStatus() == Appointment.Status.SCHEDULED
+                && (b.nextVisit == null || a.getStartAt().isBefore(b.nextVisit))) {
+                b.nextVisit = a.getStartAt();
+            }
+        }
+        return byPatient.values().stream().map(DoctorPatientDto.Builder::build).toList();
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────
+
+    private void notifyCounterpart(UUID actorAccountId, Appointment a,
+                                   Notification.Type type, String title, String body) {
+        boolean actorIsDoctor = isDoctor(actorAccountId, a);
+        UUID target = actorIsDoctor
+            ? a.getPatient().getAccount().getId()
+            : a.getDoctor().getAccount().getId();
+        notifications.notify(target, type, title, body,
+            actorIsDoctor ? "/patient/appointments" : "/doctor/agenda");
+    }
+
+    private String formatSlot(Instant startAt) {
+        return DateTimeFormatter.ofPattern("EEE d MMM yyyy 'at' HH:mm")
+            .withZone(clinicZone).format(startAt);
+    }
+
+    private static String doctorName(DoctorProfile d) {
+        String name = joinName(d.getTitle(), d.getFirstName(), d.getLastName());
+        return name.isEmpty() ? "your doctor" : name;
+    }
+
+    private static String patientName(PatientProfile p) {
+        String name = joinName(null, p.getFirstName(), p.getLastName());
+        return name.isEmpty() ? p.getAccount().getEmail() : name;
+    }
+
+    private static String joinName(String title, String first, String last) {
+        StringBuilder sb = new StringBuilder();
+        if (title != null && !title.isBlank()) sb.append(title).append(' ');
+        if (first != null && !first.isBlank()) sb.append(first).append(' ');
+        if (last != null && !last.isBlank()) sb.append(last);
+        return sb.toString().trim();
+    }
 
     /** Persist, translating the DB partial-unique-index violation into a friendly 409. */
     private Appointment saveGuardingSlot(Appointment a) {

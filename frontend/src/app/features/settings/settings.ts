@@ -82,11 +82,37 @@ import { Button, Card } from '../../shared/ui';
         </div>
       </app-card>
 
-      <!-- Notifications (placeholder for Phase 5) -->
+      <!-- Change password -->
+      <app-card>
+        <div header><h2 class="text-base font-semibold">Password</h2></div>
+        <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="grid gap-3 md:max-w-md">
+          <label class="grid gap-1">
+            <span class="text-xs font-semibold text-[color:var(--color-neutral-500)]">Current password</span>
+            <input type="password" formControlName="currentPassword" autocomplete="current-password"
+                   class="h-10 rounded-[var(--radius-input)] border border-[color:var(--color-neutral-200)] px-3 text-sm" />
+          </label>
+          <label class="grid gap-1">
+            <span class="text-xs font-semibold text-[color:var(--color-neutral-500)]">New password</span>
+            <input type="password" formControlName="newPassword" autocomplete="new-password"
+                   class="h-10 rounded-[var(--radius-input)] border border-[color:var(--color-neutral-200)] px-3 text-sm" />
+            <span class="text-xs text-[color:var(--color-neutral-400)]">At least 8 characters.</span>
+          </label>
+          @if (passwordError()) { <p class="text-xs text-[color:var(--color-error)]">{{ passwordError() }}</p> }
+          @if (passwordOk()) { <p class="text-xs text-[color:var(--color-success)]">Password changed. Use it next time you sign in.</p> }
+          <div>
+            <button app-button type="submit" [disabled]="passwordForm.invalid || changing()">
+              {{ changing() ? 'Saving…' : 'Change password' }}
+            </button>
+          </div>
+        </form>
+      </app-card>
+
+      <!-- Notifications -->
       <app-card>
         <div header><h2 class="text-base font-semibold">Notifications</h2></div>
         <p class="text-sm text-[color:var(--color-neutral-500)]">
-          Email + push preferences will land in Phase 5 along with the notification service.
+          You receive in-app notifications (the bell in the top bar) for appointments, new messages
+          and billing updates. Important events are also mirrored to your email address.
         </p>
       </app-card>
 
@@ -94,8 +120,7 @@ import { Button, Card } from '../../shared/ui';
       <app-card>
         <div header><h2 class="text-base font-semibold">Language</h2></div>
         <p class="text-sm text-[color:var(--color-neutral-500)]">
-          Currently fixed to <strong>Français (par défaut)</strong> with English fallback. Per-user
-          selection lands later in Phase 6.
+          The interface is available in <strong>Français (par défaut)</strong> with English fallback.
         </p>
       </app-card>
     </div>
@@ -111,6 +136,33 @@ export class Settings {
   protected readonly disableForm = this.fb.nonNullable.group({
     code: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]]
   });
+
+  protected readonly changing = signal(false);
+  protected readonly passwordError = signal<string | null>(null);
+  protected readonly passwordOk = signal(false);
+  protected readonly passwordForm = this.fb.nonNullable.group({
+    currentPassword: ['', [Validators.required]],
+    newPassword: ['', [Validators.required, Validators.minLength(8)]]
+  });
+
+  protected changePassword(): void {
+    if (this.passwordForm.invalid) return;
+    this.changing.set(true);
+    this.passwordError.set(null);
+    this.passwordOk.set(false);
+    const { currentPassword, newPassword } = this.passwordForm.getRawValue();
+    this.api.changePassword({ currentPassword, newPassword }).subscribe({
+      next: () => {
+        this.changing.set(false);
+        this.passwordOk.set(true);
+        this.passwordForm.reset();
+      },
+      error: err => {
+        this.changing.set(false);
+        this.passwordError.set(err?.error?.detail ?? err?.error?.title ?? 'Could not change password.');
+      }
+    });
+  }
 
   protected disableTfa(): void {
     if (this.disableForm.invalid) return;

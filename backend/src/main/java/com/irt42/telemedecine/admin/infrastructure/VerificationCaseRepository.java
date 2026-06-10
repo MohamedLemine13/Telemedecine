@@ -13,4 +13,5 @@ import java.util.UUID;
 public interface VerificationCaseRepository extends JpaRepository<VerificationCase, UUID> {
     Optional<VerificationCase> findByDoctorId(UUID doctorId);
     Page<VerificationCase> findByStatus(VerificationCase.Status status, Pageable pageable);
+    long countByStatus(VerificationCase.Status status);
 }

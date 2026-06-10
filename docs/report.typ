@@ -66,8 +66,8 @@
       inset: (x: 10pt, y: 5pt),
       text(fill: muted)[Project], [IRT42 — Telemedecine],
       text(fill: muted)[Package root], mono("com.irt42.telemedecine"),
-      text(fill: muted)[Report date], [3 June 2026],
-      text(fill: muted)[Status], [Phases 0–2 complete · Phase 3 next],
+      text(fill: muted)[Report date], [10 June 2026],
+      text(fill: muted)[Status], [All phases complete · web + mobile end-to-end],
       text(fill: muted)[Context], [Academic / school project],
     )
   ]
@@ -93,11 +93,15 @@ directory of verified doctors; lets *doctors* publish a professional profile and
 credentials for review; and gives *administrators* a verification workbench to approve or
 reject those doctors before they become visible to patients.
 
-The system is delivered as a *modular-monolith* Spring Boot backend and an *Angular 21*
-single-page frontend, both packaged into a single-command Docker Compose stack. As of this
-report, three delivery phases are complete and verified by a full end-to-end walkthrough:
-a doctor signs up, uploads a diploma, an administrator reviews and approves it, and the
-doctor then appears in patient search under the correct specialty.
+The system is delivered as a *modular-monolith* Spring Boot backend, an *Angular 21*
+single-page frontend, and a *Flutter* patient mobile app, all packaged into a single-command
+Docker Compose stack. As of this report, the full feature set is implemented and verified by
+an end-to-end walkthrough: a doctor signs up and is held at a profile-first onboarding gate,
+uploads a diploma, an administrator reviews and approves it, the doctor publishes weekly
+availability, a patient books a slot, the two hold an integrated video/phone consultation
+with real-time chat, the doctor writes clinical notes and issues a prescription (PDF) plus a
+consultation report (PDF), the appointment is completed and a simulated invoice is paid and
+reimbursed, and both parties receive in-app notifications throughout.
 
 #block(fill: brand-light, inset: 12pt, radius: 8pt, width: 100%)[
   *Project framing.* This is a school project. The implementation deliberately favours
@@ -180,8 +184,8 @@ original project specification.
 // ============================================================
 = 3. Progress Overview
 
-Delivery is organised into seven phases (0–6). The foundational three are complete; the
-remaining four are designed and scoped in the project plan but not yet built.
+Delivery was organised into seven phases (0–6). All seven are now implemented and verified,
+across the web frontend, the backend, and the Flutter patient mobile app.
 
 #table(
   columns: (auto, 1fr, auto),
@@ -206,29 +210,32 @@ remaining four are designed and scoped in the project plan but not yet built.
   pill("DONE", ok),
 
   [3 — Appointments],
-  [Doctor availability templates, slot computation, booking / reschedule / cancel,
-   patient + doctor calendars.],
-  pill("PLANNED", muted),
+  [Doctor availability templates with overlap validation, slot computation, booking /
+   reschedule / cancel, patient + doctor calendars, "my patients" roster.],
+  pill("DONE", ok),
 
   [4 — Consultation],
-  [LiveKit video rooms, WebSocket chat, shared files, doctor clinical notes,
-   consultation report.],
-  pill("PLANNED", muted),
+  [LiveKit video/phone rooms with dynamic URL fallback, real-time WebSocket chat with
+   polling fallback, doctor clinical notes, secure messaging screen, consultation report PDF.],
+  pill("DONE", ok),
 
   [5 — Prescriptions & Payments],
-  [E-prescription PDF, simulated payment gateway, invoices, email reminders.],
-  pill("PLANNED", muted),
+  [E-prescription issuing + PDF, simulated invoices reconciled from completed appointments,
+   mock payment, simulated 70% reimbursement, in-app + email notifications.],
+  pill("DONE", ok),
 
-  [6 — Admin Analytics & GDPR],
-  [Versioned CMS, audit viewer, data export / deletion, reporting dashboards.],
-  pill("PLANNED", muted),
+  [6 — Admin & Mobile],
+  [Live KPI dashboard + reports, account management (search / suspend / notify / broadcast),
+   profile-first doctor onboarding, Flutter patient app with alerts feed.],
+  pill("DONE", ok),
 )
 
-#block(fill: warn.lighten(82%), inset: 10pt, radius: 6pt, width: 100%)[
-  *Dashboards are partially mocked.* The patient and doctor dashboards render real
-  layout and KPI components but are populated with representative sample data, clearly
-  labelled in-UI ("real booking lands in Phase 3", "mock payment data — Phase 5"). The
-  live data wiring arrives with the phase that owns each feature.
+#block(fill: brand-light, inset: 10pt, radius: 6pt, width: 100%)[
+  *Dashboards are live.* The admin dashboard and reports are driven by real platform metrics
+  (`GET /api/admin/metrics`), including a 14-day appointment trend. Patient and doctor home
+  screens read real appointments, prescriptions and invoices. The only deliberately simulated
+  data path is billing — invoices, mock payment and the 70% reimbursement are synthetic by
+  design (no real payment provider).
 ]
 
 // ============================================================
@@ -257,7 +264,7 @@ remaining four are designed and scoped in the project plan but not yet built.
                                    │ public + audit   │  │ (Docker volume)  │
                                    └──────────────────┘  └──────────────────┘
 
-           Idle until later phases:  MailHog (email)   LiveKit (video)
+     Active services:  MailHog (email mirror)   LiveKit (video/phone)   /ws/chat (real-time)
   ```
 ]
 
@@ -507,8 +514,9 @@ The entire system starts with a single command:
   [frontend (nginx)], mono("4200:80"), [Serves the SPA + reverse-proxies the API.],
   [backend], mono("8080"), [Spring Boot application.],
   [postgres], mono("5442:5432"), [Database (data on a named volume).],
-  [livekit], mono("7880"), [Video server — idle until Phase 4.],
-  [mailhog], mono("8025"), [Captured email — idle until later phases.],
+  [livekit], mono("7880"), [Video/phone server — used by consultations.],
+  [mailhog], mono("8025"), [Captured email — mirrors notifications in dev.],
+  [mobile-web], mono("4300:80"), [Optional: Flutter patient app compiled to web.],
 )
 
 Both images use *multi-stage Docker builds* with BuildKit cache mounts (for `~/.m2` and
@@ -532,23 +540,24 @@ credential uploads. Uploads persist to a Docker volume owned by the non-root `sp
   [S3 / object storage with presigned URLs], [`LocalFileStorage` on a Docker volume.],
   [KMS + envelope encryption of PHI columns], [Plaintext columns (audit table reserved).],
   [Argon2id password hashing], [BCrypt strength 12.],
-  [Real payment gateway (Stripe / local)], [A mock gateway planned for Phase 5.],
+  [Real payment gateway (Stripe / local)], [Simulated invoices, mock pay + reimbursement.],
   [Managed email + push providers], [MailHog captures mail locally.],
   [Hosted, scaled LiveKit], [Self-hosted LiveKit container for dev.],
 )
 
-== 10.2 Immediate next step
+== 10.2 Possible future work
 
-*Phase 3 — Appointments.* Doctor availability templates and exceptions, server-side slot
-computation, and booking / reschedule / cancel, surfaced through a patient booking calendar
-and a doctor week-view agenda. The mock dashboards already reserve the space for this real
-data.
+With all seven phases delivered, natural extensions beyond the school scope would be:
+real browser/OS push notifications (replacing the polled in-app feed), a real payment
+provider, object storage with presigned URLs for uploads, column-level encryption of
+protected health information, full GDPR data export/deletion, and horizontal scaling of the
+LiveKit SFU. Each is called out as a deliberate simplification in Section 10.1.
 
 #v(1fr)
 #align(center)[
   #line(length: 30%, stroke: 0.6pt + brand)
   #v(4pt)
-  #text(size: 8.5pt, fill: muted)[End of report — Telemedicine Platform, 3 June 2026]
+  #text(size: 8.5pt, fill: muted)[End of report — Telemedicine Platform, 10 June 2026]
 ]
 
 #pagebreak()

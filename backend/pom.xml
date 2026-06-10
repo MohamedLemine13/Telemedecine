@@ -123,6 +123,14 @@
       <version>${totp.version}</version>
     </dependency>
 
+    <!-- PDF generation (prescriptions, consultation reports). OpenPDF is the
+         maintained LGPL/MPL fork of iText 4 — same API family, no licence cost. -->
+    <dependency>
+      <groupId>com.github.librepdf</groupId>
+      <artifactId>openpdf</artifactId>
+      <version>2.0.3</version>
+    </dependency>
+
     <!-- Lombok -->
     <dependency>
       <groupId>org.projectlombok</groupId>

@@ -7,6 +7,7 @@ import {
 } from 'livekit-client';
 
 import { ChatMessageDto, ConsultationApi, JoinResponse } from '../../core/api/consultation.api';
+import { saveBlob } from '../../core/util/download';
 
 type Phase = 'connecting' | 'live' | 'ended' | 'error';
 
@@ -42,6 +43,14 @@ type Phase = 'connecting' | 'live' | 'ended' | 'error';
           } @else if (phase() === 'ended') {
             <div class="waiting">
               <p class="text-lg font-semibold">Call ended</p>
+              @if (isDoctor()) {
+                <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  <button class="btn-ghost" (click)="downloadReport()" [disabled]="downloading()">
+                    {{ downloading() ? 'Preparing…' : '⬇ Report PDF' }}
+                  </button>
+                  <button class="btn-ghost" (click)="writePrescription()">℞ Write prescription</button>
+                </div>
+              }
               <button class="btn-primary mt-3" (click)="leave()">Done</button>
             </div>
           } @else if (videoError()) {
@@ -212,19 +221,8 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
     if (this.isDoctor()) this.loadNote();
 
     try {
-      const room = new Room({ adaptiveStream: true, dynacast: true });
+      const room = await this.connectRoom(j);
       this.room = room;
-
-      room
-        .on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => this.onRemoteTrack(track))
-        .on(RoomEvent.TrackUnsubscribed, track => track.detach())
-        .on(RoomEvent.ParticipantConnected, () => this.refreshRemotePresence())
-        .on(RoomEvent.ParticipantDisconnected, () => this.refreshRemotePresence())
-        .on(RoomEvent.Disconnected, () => { if (this.phase() === 'live') this.remoteConnected.set(false); });
-
-      const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const livekitUrl = `${wsProto}://${window.location.host}/lk`;
-      await room.connect(livekitUrl, j.token);
 
       if (j.mode === 'VIDEO') {
         await room.localParticipant.enableCameraAndMicrophone();
@@ -236,9 +234,67 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
       this.refreshRemotePresence();
       room.startAudio().catch(() => { /* autoplay may need a click; harmless */ });
     } catch (e: any) {
-      console.log(this.videoError());
       this.videoError.set(e?.message ?? 'Camera/microphone or network unavailable.');
     }
+  }
+
+  /**
+   * Try each candidate signalling URL in order until one connects. The backend
+   * tells us where LiveKit lives (`livekitUrl`, from LIVEKIT_PUBLIC_URL); the
+   * same-origin `/lk` nginx proxy is the fallback that always exists in the
+   * Docker stack. A fresh Room is created per attempt — livekit-client does not
+   * guarantee a Room object is reusable after a failed connect.
+   */
+  private async connectRoom(j: JoinResponse): Promise<Room> {
+    let lastError: unknown = new Error('No LiveKit URL available.');
+    for (const url of this.livekitCandidates(j)) {
+      const room = new Room({ adaptiveStream: true, dynacast: true });
+      room
+        .on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => this.onRemoteTrack(track))
+        .on(RoomEvent.TrackUnsubscribed, track => track.detach())
+        .on(RoomEvent.ParticipantConnected, () => this.refreshRemotePresence())
+        .on(RoomEvent.ParticipantDisconnected, () => this.refreshRemotePresence())
+        .on(RoomEvent.Disconnected, () => { if (this.phase() === 'live') this.remoteConnected.set(false); });
+      try {
+        await room.connect(url, j.token);
+        return room;
+      } catch (e) {
+        lastError = e;
+        await room.disconnect().catch(() => {});
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Ordered list of signalling URLs to try:
+   *  1. the backend-provided URL (rewritten to the page's host when the server
+   *     handed back `localhost` but the app is being viewed from another device
+   *     — LiveKit's 7880 port is published on the Docker host either way);
+   *  2. the same-origin `/lk` reverse proxy.
+   */
+  private livekitCandidates(j: JoinResponse): string[] {
+    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const sameOriginProxy = `${wsProto}://${window.location.host}/lk`;
+    const urls: string[] = [];
+
+    const provided = j.livekitUrl?.trim();
+    if (provided) {
+      try {
+        const u = new URL(provided);
+        const pageHost = window.location.hostname;
+        const providedIsLoopback = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+        const pageIsLoopback = pageHost === 'localhost' || pageHost === '127.0.0.1';
+        if (providedIsLoopback && !pageIsLoopback) {
+          urls.push(`${u.protocol}//${pageHost}:${u.port || '7880'}`);
+        } else {
+          urls.push(provided);
+        }
+      } catch { /* malformed URL from config — fall through to the proxy */ }
+    }
+
+    urls.push(sameOriginProxy);
+    return [...new Set(urls)];
   }
 
   private onRemoteTrack(track: RemoteTrack): void {
@@ -287,6 +343,26 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
   protected leave(): void {
     const role = this.join()?.role;
     this.router.navigateByUrl(role === 'DOCTOR' ? '/doctor/agenda' : '/patient/appointments');
+  }
+
+  protected readonly downloading = signal(false);
+
+  /** Doctor downloads the consultation report (clinical note + summary) as a PDF. */
+  protected downloadReport(): void {
+    const cid = this.join()?.consultationId;
+    if (!cid) return;
+    this.downloading.set(true);
+    this.api.reportPdf(cid).subscribe({
+      next: blob => { saveBlob(blob, `report-${cid.slice(0, 8)}.pdf`); this.downloading.set(false); },
+      error: () => this.downloading.set(false)
+    });
+  }
+
+  /** Jump to the prescription composer, pre-selecting this appointment. */
+  protected writePrescription(): void {
+    this.router.navigate(['/doctor/prescriptions/new'], {
+      queryParams: { appointmentId: this.appointmentId }
+    });
   }
 
   // ── Chat ────────────────────────────────────────────────────────────────--

@@ -4,6 +4,7 @@ import com.irt42.telemedecine.appointment.domain.Appointment;
 import com.irt42.telemedecine.appointment.infrastructure.AppointmentRepository;
 import com.irt42.telemedecine.consultation.api.dto.ChatMessageDto;
 import com.irt42.telemedecine.consultation.api.dto.ClinicalNoteDto;
+import com.irt42.telemedecine.consultation.api.dto.ConversationDto;
 import com.irt42.telemedecine.consultation.api.dto.JoinResponse;
 import com.irt42.telemedecine.consultation.domain.ChatMessage;
 import com.irt42.telemedecine.consultation.domain.ClinicalNote;
@@ -11,7 +12,10 @@ import com.irt42.telemedecine.consultation.domain.Consultation;
 import com.irt42.telemedecine.consultation.infrastructure.ChatMessageRepository;
 import com.irt42.telemedecine.consultation.infrastructure.ClinicalNoteRepository;
 import com.irt42.telemedecine.consultation.infrastructure.ConsultationRepository;
+import com.irt42.telemedecine.consultation.infrastructure.ws.ChatSocketHandler;
 import com.irt42.telemedecine.doctor.domain.DoctorProfile;
+import com.irt42.telemedecine.notification.application.NotificationService;
+import com.irt42.telemedecine.notification.domain.Notification;
 import com.irt42.telemedecine.patient.domain.PatientProfile;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -20,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -39,6 +44,8 @@ public class ConsultationService {
     private final ClinicalNoteRepository notes;
     private final AppointmentRepository appointments;
     private final LivekitTokenService livekit;
+    private final ChatSocketHandler chatSocket;
+    private final NotificationService notifications;
     private final String livekitUrl;
 
     public ConsultationService(ConsultationRepository consultations,
@@ -46,12 +53,16 @@ public class ConsultationService {
                                ClinicalNoteRepository notes,
                                AppointmentRepository appointments,
                                LivekitTokenService livekit,
+                               ChatSocketHandler chatSocket,
+                               NotificationService notifications,
                                @Value("${telemedecine.livekit.public-url:ws://localhost:7880}") String livekitUrl) {
         this.consultations = consultations;
         this.messages = messages;
         this.notes = notes;
         this.appointments = appointments;
         this.livekit = livekit;
+        this.chatSocket = chatSocket;
+        this.notifications = notifications;
         this.livekitUrl = livekitUrl;
     }
 
@@ -119,8 +130,71 @@ public class ConsultationService {
         m.setSenderName(side.selfName);
         m.setSenderRole(side.role);
         m.setBody(body);
-        return ChatMessageDto.from(messages.save(m));
+        ChatMessageDto dto = ChatMessageDto.from(messages.save(m));
+
+        // Real-time push to every open socket of this room; if the counterpart
+        // is not connected right now, leave them an in-app notification instead.
+        chatSocket.broadcast(consultationId, dto);
+        UUID counterpartId = counterpartAccountId(accountId, c.getAppointment());
+        if (!chatSocket.isConnected(consultationId, counterpartId)) {
+            String preview = body.length() > 120 ? body.substring(0, 117) + "…" : body;
+            notifications.notify(counterpartId, Notification.Type.NEW_CHAT_MESSAGE,
+                "New message from " + side.selfName(), preview,
+                (side.role == Appointment.Party.DOCTOR ? "/patient" : "/doctor") + "/messages");
+        }
+        return dto;
     }
+
+    // ── Conversations (Messages screens) ─────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<ConversationDto> listConversations(UUID accountId) {
+        List<ConversationDto> out = new ArrayList<>();
+        for (Consultation c : consultations.findAllForAccount(accountId)) {
+            Side side = sideOf(accountId, c.getAppointment());
+            ChatMessage last = messages
+                .findFirstByConsultationIdOrderByCreatedAtDesc(c.getId()).orElse(null);
+            out.add(new ConversationDto(
+                c.getId(),
+                c.getAppointment().getId(),
+                side.counterpartName(),
+                c.getAppointment().getMode().name(),
+                c.getStatus().name(),
+                c.getStartedAt(),
+                c.getEndedAt(),
+                last == null ? null : last.getBody(),
+                last == null ? null : last.getSenderName(),
+                last == null ? null : last.getCreatedAt(),
+                (int) messages.countByConsultationId(c.getId())
+            ));
+        }
+        return out;
+    }
+
+    /**
+     * Everything the consultation-report PDF needs, resolved in one
+     * transaction. Doctor-only: the report embeds the private clinical note.
+     */
+    @Transactional(readOnly = true)
+    public ReportData reportData(UUID accountId, UUID consultationId) {
+        Consultation c = loadParticipantConsultation(accountId, consultationId);
+        requireDoctor(accountId, c);
+        Side side = sideOf(accountId, c.getAppointment());
+        String note = notes.findByConsultationId(consultationId)
+            .map(ClinicalNote::getBody).orElse(null);
+        Appointment appt = c.getAppointment();
+        return new ReportData(
+            c.getId(), side.selfName(), side.counterpartName(),
+            appt.getStartAt(), c.getStartedAt(), c.getEndedAt(),
+            appt.getMode().name(), appt.getReason(), note,
+            (int) messages.countByConsultationId(consultationId)
+        );
+    }
+
+    public record ReportData(
+        UUID consultationId, String doctorName, String patientName,
+        Instant scheduledAt, Instant startedAt, Instant endedAt,
+        String mode, String reason, String clinicalNote, int messageCount
+    ) {}
 
     // ── Clinical note (doctor only) ───────────────────────────────────────---
     @Transactional
@@ -185,6 +259,13 @@ public class ConsultationService {
         if (last != null && !last.isBlank()) sb.append(last);
         String name = sb.toString().trim();
         return name.isEmpty() ? fallback : name;
+    }
+
+    private static UUID counterpartAccountId(UUID accountId, Appointment appt) {
+        UUID doctorAccount = appt.getDoctor().getAccount().getId();
+        return doctorAccount.equals(accountId)
+            ? appt.getPatient().getAccount().getId()
+            : doctorAccount;
     }
 
     private static Supplier<ResponseStatusException> notFound(String msg) {

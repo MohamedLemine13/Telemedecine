@@ -32,4 +32,6 @@ public interface DoctorProfileRepository extends JpaRepository<DoctorProfile, UU
     Page<DoctorProfile> search(@Param("specialty") String specialty,
                                @Param("language") String language,
                                Pageable pageable);
+
+    long countByVerifiedTrue();
 }

@@ -12,9 +12,9 @@ class PatientService {
     return PatientProfile.fromJson(res.data as Map<String, dynamic>);
   }
 
-  /// Prescriptions are a Phase-5 backend feature. This call tolerates the
-  /// endpoint not existing yet (404) by returning an empty list, so the screen
-  /// shows a friendly "coming soon" empty state instead of an error.
+  /// The patient's prescriptions (GET /api/prescriptions, role-aware on the
+  /// backend). Tolerates transient failures by returning an empty list so the
+  /// screen shows a friendly empty state instead of an error.
   Future<List<Map<String, dynamic>>> prescriptions() async {
     try {
       final res = await _api.dio.get('/api/prescriptions');
