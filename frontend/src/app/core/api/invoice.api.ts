@@ -4,8 +4,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
-export type InvoiceStatus = 'PENDING' | 'PAID' | 'REIMBURSED';
-export type PaymentMethod = 'MOCK_CARD' | 'MOCK_MOBILE_MONEY';
+export type InvoiceStatus = 'PENDING' | 'PAID' | 'REIMBURSEMENT_REQUESTED' | 'REIMBURSED';
 
 export interface InvoiceDto {
   id: string;
@@ -49,11 +48,24 @@ export class InvoiceApi {
     return this.http.get<PaymentSummaryDto>(`${this.base}/summary`);
   }
 
-  pay(id: string, method: PaymentMethod): Observable<InvoiceDto> {
-    return this.http.post<InvoiceDto>(`${this.base}/${id}/pay`, { method });
+  pay(id: string): Observable<InvoiceDto> {
+    return this.http.post<InvoiceDto>(`${this.base}/${id}/pay`, {});
   }
 
-  reimburse(id: string): Observable<InvoiceDto> {
-    return this.http.post<InvoiceDto>(`${this.base}/${id}/reimburse`, {});
+  requestReimbursement(id: string): Observable<InvoiceDto> {
+    return this.http.post<InvoiceDto>(`${this.base}/${id}/request-reimbursement`, {});
+  }
+
+  // ── Admin reimbursement validation ──
+  pendingReimbursements(): Observable<InvoiceDto[]> {
+    return this.http.get<InvoiceDto[]>(`${environment.apiBaseUrl}/api/admin/reimbursements`);
+  }
+
+  approveReimbursement(id: string): Observable<InvoiceDto> {
+    return this.http.post<InvoiceDto>(`${environment.apiBaseUrl}/api/admin/reimbursements/${id}/approve`, {});
+  }
+
+  rejectReimbursement(id: string): Observable<InvoiceDto> {
+    return this.http.post<InvoiceDto>(`${environment.apiBaseUrl}/api/admin/reimbursements/${id}/reject`, {});
   }
 }

@@ -66,6 +66,7 @@ Once everything is healthy:
 | URL | What |
 |---|---|
 | <http://localhost:4200> | The web app — Angular SPA |
+| <https://localhost:4443> | The web app over **HTTPS** — required for camera/video (see below) |
 | <http://localhost:4200/swagger-ui.html> | Swagger UI (proxied) |
 | <http://localhost:8080/swagger-ui.html> | Swagger UI (direct) |
 | <http://localhost:8025> | MailHog — captured outbound email |
@@ -95,6 +96,51 @@ MACHINE_IP=<your-LAN-ip>
 
 The web client also falls back to the same-origin `/lk` nginx proxy automatically if
 the advertised URL is unreachable, so localhost demos work with no extra config.
+
+### HTTPS (required for camera / microphone)
+
+Browsers only grant `getUserMedia` (camera + mic) in a **secure context** — i.e.
+`localhost` or `https://`. Opened from a phone or another machine over plain
+`http://<ip>:4200`, the camera prompt never fires and video calls fail. The
+frontend container therefore also terminates TLS:
+
+| URL | What |
+|---|---|
+| <https://localhost:4443> / `https://<ip>:4443` | The web app over HTTPS — use this for camera/video |
+
+The certificate comes from the project PKI in [`pki/`](pki/) — a local CA
+(`pki/certs/ca.cert.pem`) signing a server cert whose **SAN includes the host IP**
+(modern browsers require a SAN; CN is ignored). `docker-compose.yml` bind-mounts
+`pki/server.fullchain.pem` + `pki/server.key.pem` into nginx, so certificates can
+be rotated without rebuilding the image.
+
+- **Trust the cert (no warning):** import `pki/certs/ca.cert.pem` into the
+  browser/OS trust store (Firefox → *Certificates → Authorities → Import*; Linux →
+  `sudo cp pki/certs/ca.cert.pem /usr/local/share/ca-certificates/ && sudo update-ca-certificates`).
+- **Or** just accept the one-time "not trusted" warning — the camera still works.
+- **Re-issue the server cert for a different IP/host** (signed by the same CA):
+
+  ```sh
+  cat > /tmp/san.ext <<'EOF'
+  basicConstraints = critical, CA:FALSE
+  keyUsage = critical, digitalSignature, keyEncipherment
+  extendedKeyUsage = serverAuth
+  subjectAltName = @alt_names
+  [alt_names]
+  IP.1  = <your-ip>
+  DNS.1 = localhost
+  EOF
+  openssl x509 -req -in pki/server.csr.pem \
+    -CA pki/certs/ca.cert.pem -CAkey pki/private/ca.key.pem -CAcreateserial \
+    -out pki/server.cert.pem -days 825 -sha256 -extfile /tmp/san.ext
+  cat pki/server.cert.pem pki/certs/ca.cert.pem > pki/server.fullchain.pem
+  docker compose up -d frontend          # re-applies the mounted cert (no rebuild)
+  ```
+
+> Host `:443` is left to whatever reverse proxy you already run, so this project
+> uses `:4443`. The frontend is also a **production** Angular build (optimised, no
+> dev-mode notice) and self-heals stale lazy chunks after a rebuild by reloading
+> once — see [`docs/FRONTEND.md`](docs/FRONTEND.md).
 
 ### Common compose commands
 

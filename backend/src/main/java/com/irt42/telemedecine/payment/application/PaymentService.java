@@ -70,15 +70,18 @@ public class PaymentService {
         return summarize(listForPatient(accountId));
     }
 
+    /** The single, simulated payment method offered in the app. */
+    static final String PAYMENT_METHOD = "MOBILE_MONEY";
+
     // ── Actions (patient) ────────────────────────────────────────────────────
     @Transactional
-    public InvoiceDto pay(UUID patientAccountId, UUID invoiceId, String method) {
+    public InvoiceDto pay(UUID patientAccountId, UUID invoiceId) {
         Invoice inv = loadPatientInvoice(patientAccountId, invoiceId);
         if (inv.getStatus() != Invoice.Status.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Invoice is already settled");
         }
         inv.setStatus(Invoice.Status.PAID);
-        inv.setMethod(method == null || method.isBlank() ? "MOCK_CARD" : method);
+        inv.setMethod(PAYMENT_METHOD);
         inv.setPaidAt(Instant.now());
         notifications.notify(
             inv.getDoctor().getAccount().getId(),
@@ -89,19 +92,78 @@ public class PaymentService {
         return InvoiceDto.from(inv);
     }
 
-    /** Simulated insurance: credits a fixed share of a paid invoice back. */
+    /**
+     * Patient files a reimbursement claim on a paid invoice. It does NOT credit
+     * money — it moves the invoice to REIMBURSEMENT_REQUESTED and waits for an
+     * admin to approve or reject it. The intended amount (70%) is stored for
+     * display while the claim is pending.
+     */
     @Transactional
-    public InvoiceDto reimburse(UUID patientAccountId, UUID invoiceId) {
+    public InvoiceDto requestReimbursement(UUID patientAccountId, UUID invoiceId) {
         Invoice inv = loadPatientInvoice(patientAccountId, invoiceId);
         if (inv.getStatus() != Invoice.Status.PAID) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "Only a paid invoice can be reimbursed");
+                "Only a paid invoice can be claimed for reimbursement");
         }
-        inv.setStatus(Invoice.Status.REIMBURSED);
+        inv.setStatus(Invoice.Status.REIMBURSEMENT_REQUESTED);
         inv.setReimbursedAmount(
             inv.getAmount().multiply(REIMBURSEMENT_RATE).setScale(2, RoundingMode.HALF_UP));
-        inv.setReimbursedAt(Instant.now());
+        inv.setReimbursedAt(null);
         return InvoiceDto.from(inv);
+    }
+
+    // ── Actions (admin) — reimbursement validation ─────────────────────────────
+    @Transactional(readOnly = true)
+    public List<InvoiceDto> listReimbursementRequests() {
+        return invoices.findByStatusOrderByCreatedAtDesc(Invoice.Status.REIMBURSEMENT_REQUESTED)
+            .stream().map(InvoiceDto::from).toList();
+    }
+
+    /** Admin approves a pending claim → the simulated insurance credit is final. */
+    @Transactional
+    public InvoiceDto approveReimbursement(UUID invoiceId) {
+        Invoice inv = loadRequestedInvoice(invoiceId);
+        inv.setStatus(Invoice.Status.REIMBURSED);
+        if (inv.getReimbursedAmount() == null) {
+            inv.setReimbursedAmount(
+                inv.getAmount().multiply(REIMBURSEMENT_RATE).setScale(2, RoundingMode.HALF_UP));
+        }
+        inv.setReimbursedAt(Instant.now());
+        notifications.notify(
+            inv.getPatient().getAccount().getId(),
+            Notification.Type.SYSTEM,
+            "Reimbursement approved",
+            "Your reimbursement of " + inv.getReimbursedAmount() + " " + inv.getCurrency()
+                + " was approved.",
+            "/patient/payments");
+        return InvoiceDto.from(inv);
+    }
+
+    /** Admin rejects a pending claim → the invoice returns to PAID. */
+    @Transactional
+    public InvoiceDto rejectReimbursement(UUID invoiceId) {
+        Invoice inv = loadRequestedInvoice(invoiceId);
+        inv.setStatus(Invoice.Status.PAID);
+        inv.setReimbursedAmount(null);
+        inv.setReimbursedAt(null);
+        notifications.notify(
+            inv.getPatient().getAccount().getId(),
+            Notification.Type.SYSTEM,
+            "Reimbursement rejected",
+            "Your reimbursement claim for invoice of " + inv.getAmount() + " " + inv.getCurrency()
+                + " was not approved.",
+            "/patient/payments");
+        return InvoiceDto.from(inv);
+    }
+
+    private Invoice loadRequestedInvoice(UUID invoiceId) {
+        Invoice inv = invoices.findById(invoiceId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
+        if (inv.getStatus() != Invoice.Status.REIMBURSEMENT_REQUESTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Invoice has no pending reimbursement request");
+        }
+        return inv;
     }
 
     // ── Internals ────────────────────────────────────────────────────────────
@@ -139,7 +201,7 @@ public class PaymentService {
             billed = billed.add(i.amount());
             currency = i.currency();
             switch (i.status()) {
-                case "PAID" -> paid = paid.add(i.amount());
+                case "PAID", "REIMBURSEMENT_REQUESTED" -> paid = paid.add(i.amount());
                 case "REIMBURSED" -> {
                     paid = paid.add(i.amount());
                     if (i.reimbursedAmount() != null) reimbursed = reimbursed.add(i.reimbursedAmount());

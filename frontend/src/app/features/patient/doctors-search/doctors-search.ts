@@ -72,6 +72,13 @@ const LANGUAGES = [
             <div class="flex items-start justify-between">
               <div>
                 <p class="text-base font-semibold">{{ d.title || 'Dr.' }} {{ d.firstName }} {{ d.lastName }}</p>
+                @if (d.ratingCount > 0) {
+                  <p class="mt-0.5 flex items-center gap-1 text-xs">
+                    <span class="text-[color:var(--color-warning,#f59e0b)]">{{ stars(d.ratingAverage) }}</span>
+                    <span class="font-semibold">{{ (d.ratingAverage || 0).toFixed(1) }}</span>
+                    <span class="text-[color:var(--color-neutral-500)]">({{ d.ratingCount }})</span>
+                  </p>
+                }
                 <p class="text-xs text-[color:var(--color-neutral-500)]">
                   @for (s of d.specialties; track s.id) {
                     <span class="mr-1">{{ s.labelEn }}</span>
@@ -133,6 +140,11 @@ export class DoctorsSearch implements OnInit {
   ngOnInit(): void {
     this.api.listSpecialties().subscribe(s => this.specialties.set(s));
     this.search();
+  }
+
+  protected stars(avg: number | null | undefined): string {
+    const r = Math.round(avg || 0);
+    return '★★★★★'.slice(0, r) + '☆☆☆☆☆'.slice(0, 5 - r);
   }
 
   protected search(): void {

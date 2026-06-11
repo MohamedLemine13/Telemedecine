@@ -32,7 +32,7 @@ import java.util.UUID;
 @NoArgsConstructor
 public class Invoice extends BaseEntity {
 
-    public enum Status { PENDING, PAID, REIMBURSED }
+    public enum Status { PENDING, PAID, REIMBURSEMENT_REQUESTED, REIMBURSED }
 
     @Column(name = "appointment_id", nullable = false, unique = true)
     private UUID appointmentId;
@@ -59,7 +59,7 @@ public class Invoice extends BaseEntity {
     @Column(name = "status", nullable = false, length = 16)
     private Status status = Status.PENDING;
 
-    /** Simulated payment method chosen by the patient (MOCK_CARD, MOCK_MOBILE_MONEY). */
+    /** Simulated payment method. Single method in this app: MOBILE_MONEY. */
     @Column(name = "method", length = 32)
     private String method;
 

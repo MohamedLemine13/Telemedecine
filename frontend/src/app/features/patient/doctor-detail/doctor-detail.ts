@@ -35,6 +35,13 @@ interface DayGroup {
               <p class="mt-1 text-xs text-[color:var(--color-neutral-500)]">
                 {{ specialtyLabels(d) || 'General practice' }}
               </p>
+              @if (d.ratingCount > 0) {
+                <p class="mt-1 flex items-center gap-1 text-xs">
+                  <span class="text-[color:var(--color-warning,#f59e0b)]">{{ stars(d.ratingAverage) }}</span>
+                  <span class="font-semibold">{{ (d.ratingAverage || 0).toFixed(1) }}</span>
+                  <span class="text-[color:var(--color-neutral-500)]">· {{ d.ratingCount }} rating{{ d.ratingCount === 1 ? '' : 's' }}</span>
+                </p>
+              }
             </div>
             <app-status-badge variant="success" label="Verified" />
           </div>
@@ -194,6 +201,11 @@ export class DoctorDetail implements OnInit {
 
   protected specialtyLabels(d: DoctorProfileDto): string {
     return d.specialties.map(s => s.labelEn).join(', ');
+  }
+
+  protected stars(avg: number | null | undefined): string {
+    const r = Math.round(avg || 0);
+    return '★★★★★'.slice(0, r) + '☆☆☆☆☆'.slice(0, 5 - r);
   }
 
   protected confirm(): void {

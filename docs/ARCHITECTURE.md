@@ -114,9 +114,11 @@ verification_case (doctor_profile)
 
 - `BaseEntity` gives every table a UUID id, `created_at` / `updated_at` audit
   columns, and an optimistic-lock `version`.
-- Schema is owned by **Flyway** migrations `V1…V7`
+- Schema is owned by **Flyway** migrations `V1…V10`
   (`backend/src/main/resources/db/migration`). V6 adds prescriptions; V7 adds
-  notifications + invoices.
+  notifications + invoices; V8 widens the notification CHECK for
+  `PRESCRIPTION_ISSUED`; V9 adds the `REIMBURSEMENT_REQUESTED` invoice status; V10
+  adds `doctor_rating` (patient→doctor ratings, aggregated on `doctor_profile`).
 - Nullable query params use the *coalesce-bind* idiom so a single JPQL query
   serves "filtered" and "unfiltered" reads.
 
@@ -140,9 +142,19 @@ verification_case (doctor_profile)
 - **Frontend guards.** `authGuard`, `roleGuard`, `rootRedirectGuard`, and the
   doctor `doctorProfileGuard` (profile-first onboarding) gate the SPA routes; the
   HTTP `authInterceptor` attaches the bearer token and refreshes on 401.
+- **TLS / secure context.** The frontend nginx terminates HTTPS on `:4443` using
+  the project PKI in [`pki/`](../pki/): a local CA (`certs/ca.cert.pem`) signing a
+  server cert whose **SAN includes the host IP** (browsers ignore CN). The
+  fullchain + key are bind-mounted by `docker-compose.yml`, so certs rotate
+  without an image rebuild. HTTPS is not cosmetic here — browsers block
+  `getUserMedia` (camera/mic) outside a secure context, so the video call
+  **requires** loading the app over `https://` (or `localhost`). Host `:443` is
+  left to any pre-existing reverse proxy; this project uses `:4443`.
 
-Deliberate simplifications (school project): BCrypt instead of Argon2id, local
-disk instead of object storage, no rate-limiting/WAF, simulated payments.
+Deliberate simplifications: BCrypt instead of Argon2id, local
+disk instead of object storage, no rate-limiting/WAF, simulated payments, a
+self-managed CA (import `pki/certs/ca.cert.pem` to trust it) instead of a public
+ACME/Let's Encrypt certificate.
 
 ---
 

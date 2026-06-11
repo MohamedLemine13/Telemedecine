@@ -80,6 +80,21 @@ type Filter = 'UPCOMING' | 'PAST' | 'CANCELLED' | 'ALL';
                   </div>
                 }
               }
+
+              @if (a.status === 'COMPLETED') {
+                <div class="mt-3">
+                  @if (ratedIds().has(a.id)) {
+                    <p class="text-xs text-[color:var(--color-success)]">★ Thanks — your rating was recorded.</p>
+                  } @else {
+                    <div class="flex items-center gap-1">
+                      <span class="mr-1 text-xs text-[color:var(--color-neutral-500)]">Rate your consultation:</span>
+                      @for (n of [1,2,3,4,5]; track n) {
+                        <button type="button" class="star" (click)="rate(a, n)" [disabled]="working() === a.id">★</button>
+                      }
+                    </div>
+                  }
+                </div>
+              }
             </li>
           }
         </ul>
@@ -87,6 +102,8 @@ type Filter = 'UPCOMING' | 'PAST' | 'CANCELLED' | 'ALL';
     </app-card>
   `,
   styles: `
+    .star { font-size: 1.25rem; line-height: 1; color: var(--color-neutral-300); background: none; border: none; cursor: pointer; padding: 0 1px; transition: color .12s; }
+    .star:hover, .star:hover ~ .star { color: var(--color-warning, #f59e0b); }
     .filter, .filter-active {
       padding: 6px 14px; border: 1px solid var(--color-neutral-200);
       border-radius: 9999px; background: var(--color-neutral-0);
@@ -119,6 +136,15 @@ export class PatientAppointments implements OnInit {
   protected readonly rescheduleFor = signal<string | null>(null);
   protected readonly slots = signal<SlotDto[]>([]);
   protected readonly rescheduleError = signal<string | null>(null);
+  protected readonly ratedIds = signal<Set<string>>(new Set());
+
+  protected rate(a: AppointmentDto, stars: number): void {
+    this.working.set(a.id);
+    this.api.rate(a.id, stars).subscribe({
+      next: () => { this.working.set(null); this.ratedIds.update(s => new Set(s).add(a.id)); },
+      error: () => { this.working.set(null); this.ratedIds.update(s => new Set(s).add(a.id)); }
+    });
+  }
 
   protected readonly visible = computed(() => {
     const list = this.all();

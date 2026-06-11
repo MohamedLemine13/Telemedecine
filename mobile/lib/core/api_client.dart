@@ -2,11 +2,13 @@ import 'package:dio/dio.dart';
 
 import 'auth_store.dart';
 import 'config.dart';
+import 'tls.dart';
 
 /// Authenticated HTTP client. Attaches the bearer token to every request and,
 /// on a 401, transparently refreshes the token pair once and retries.
 class ApiClient {
   ApiClient(this._auth) : dio = Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl)) {
+    applyProjectTls(dio); // trust the project CA on HTTPS builds
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         final token = _auth.accessToken;

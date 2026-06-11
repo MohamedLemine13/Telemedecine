@@ -23,6 +23,11 @@ export const adminRoutes: Routes = [
     data: { title: 'Accounts' }
   },
   {
+    path: 'reimbursements',
+    loadComponent: () => import('./reimbursements/reimbursements-page').then(m => m.AdminReimbursements),
+    data: { title: 'Reimbursement claims' }
+  },
+  {
     path: 'reports',
     loadComponent: () => import('./reports/reports-page').then(m => m.AdminReports),
     data: { title: 'Reports' }

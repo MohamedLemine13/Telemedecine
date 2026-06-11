@@ -43,7 +43,7 @@ import { LanguageSwitcher } from '../../shared/ui';
         <div class="card">
           <router-outlet />
         </div>
-        <p class="legal">© 2026 Telemedecine · Projet scolaire</p>
+        <p class="legal">© 2026 Telemedecine</p>
       </main>
     </div>
   `,

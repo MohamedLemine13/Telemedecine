@@ -78,14 +78,16 @@ type Phase = 'connecting' | 'live' | 'ended' | 'error';
         @if (phase() === 'live' && !videoError()) {
           <div class="controls">
             <button class="ctrl" [class.off]="!micOn()" (click)="toggleMic()" title="Microphone">
-              {{ micOn() ? '🎙️' : '🔇' }}
+              <svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="micOn() ? MIC : MIC_OFF"></path></svg>
             </button>
             @if (join()?.mode === 'VIDEO') {
               <button class="ctrl" [class.off]="!camOn()" (click)="toggleCam()" title="Camera">
-                {{ camOn() ? '📹' : '🚫' }}
+                <svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="camOn() ? CAM : CAM_OFF"></path></svg>
               </button>
             }
-            <button class="ctrl end" (click)="endCall()" title="Leave">📞</button>
+            <button class="ctrl end" (click)="endCall()" title="Leave">
+              <svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="CALL_END"></path></svg>
+            </button>
           </div>
         }
       </div>
@@ -143,9 +145,10 @@ type Phase = 'connecting' | 'live' | 'ended' | 'error';
     .waiting { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center; gap: 4px; }
 
     .controls { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 14px; background: #0b1220; }
-    .ctrl { width: 48px; height: 48px; border-radius: 9999px; border: none; background: #1e293b; color: #fff; font-size: 1.2rem; cursor: pointer; }
+    .ctrl { width: 48px; height: 48px; border-radius: 9999px; border: none; background: #1e293b; color: #fff; cursor: pointer; display: grid; place-items: center; }
+    .ctrl .mi { width: 24px; height: 24px; fill: currentColor; display: block; }
     .ctrl.off { background: #475569; }
-    .ctrl.end { background: var(--color-error); transform: rotate(135deg); }
+    .ctrl.end { background: var(--color-error); }
 
     .panel { display: flex; flex-direction: column; background: var(--color-neutral-0); border: 1px solid var(--color-neutral-200); border-radius: var(--radius-card); overflow: hidden; }
     .tabs { display: flex; border-bottom: 1px solid var(--color-neutral-200); }
@@ -182,6 +185,15 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
   @ViewChild('localVideo') localVideo?: ElementRef<HTMLVideoElement>;
   @ViewChild('remoteVideo') remoteVideo?: ElementRef<HTMLVideoElement>;
   @ViewChild('chatList') chatList?: ElementRef<HTMLDivElement>;
+
+  // Material Design icon paths — identical to the Flutter app's Icons.mic /
+  // mic_off / videocam / videocam_off / call_end, so the call controls look the
+  // same on web and mobile.
+  protected readonly MIC = 'M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z';
+  protected readonly MIC_OFF = 'M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zM15 11.16L9 5.18V5c0-1.66 1.34-3 3-3s3 1.34 3 3v6.16zM4.27 3L3 4.27l6 6V11c0 1.66 1.34 3 3 3 .23 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z';
+  protected readonly CAM = 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z';
+  protected readonly CAM_OFF = 'M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z';
+  protected readonly CALL_END = 'M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z';
 
   protected readonly phase = signal<Phase>('connecting');
   protected readonly errorMsg = signal('');

@@ -31,3 +31,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # Project CA — trusted at startup so HTTPS/WSS to the nginx front door works
+    # without installing the certificate on the device. See core/tls_io.dart.
+    - assets/ca.cert.pem

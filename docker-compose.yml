@@ -106,10 +106,21 @@ services:
         condition: service_started
     ports:
       - "4200:80"
-      # HTTPS (self-signed) — needed so the browser grants camera/mic access
-      # when the app is opened from a phone or another machine by IP. Open
-      # https://<host>:4443 and accept the certificate warning once.
+      # HTTPS — required so the browser grants camera/mic access (getUserMedia
+      # is blocked on insecure origins). Served with the project's own
+      # CA-signed cert (pki/), mounted below. Host 443 is held by the existing
+      # nginx-proxy-manager, so this project uses 4443.
+      #   Open https://187.124.219.82:4443
       - "4443:443"
+    volumes:
+      # Real PKI: CA-signed leaf (+ CA chain) and its key, plus the live nginx
+      # config — all bind-mounted so certificates and proxy rules can be rotated
+      # without rebuilding the image. The cert SAN includes 187.124.219.82, so
+      # importing pki/certs/ca.cert.pem into a device's trust store makes the
+      # site fully trusted (no warning) — a genuine secure context for camera.
+      - ./pki/server.fullchain.pem:/etc/nginx/certs/server.fullchain.pem:ro
+      - ./pki/server.key.pem:/etc/nginx/certs/server.key.pem:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/app.conf:ro
 
   # ─── Mobile (one-shot APK builder) ──────────────────────────────────────────
   # Not part of the running stack — only built on demand under the `mobile`
@@ -127,7 +138,7 @@ services:
       context: ./mobile
       dockerfile: ../infra/docker/flutter.Dockerfile
       args:
-        API_BASE_URL: ${MOBILE_API_BASE_URL:-http://10.0.2.2:8080}
+        API_BASE_URL: ${MOBILE_API_BASE_URL:-https://187.124.219.82:4443}
     image: telemedecine/mobile-build:dev
     volumes:
       - ./mobile/dist:/out

@@ -118,6 +118,12 @@ export class AppointmentApi {
     return this.http.post<AppointmentDto>(`${this.base}/${id}/complete`, {});
   }
 
+  /** Patient rates the doctor of a completed appointment (1–5 stars). */
+  rate(appointmentId: string, stars: number, comment?: string): Observable<{ ratingAverage: number; ratingCount: number }> {
+    return this.http.post<{ ratingAverage: number; ratingCount: number }>(
+      `${environment.apiBaseUrl}/api/ratings`, { appointmentId, stars, comment: comment ?? null });
+  }
+
   // ── Doctor availability + slots ───────────────────────────────────────────
   slots(doctorId: string, from?: string, to?: string): Observable<SlotDto[]> {
     let qp = new HttpParams();

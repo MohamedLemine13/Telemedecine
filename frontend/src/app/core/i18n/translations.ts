@@ -38,6 +38,7 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   'nav.profile':              { en: 'Profile',          fr: 'Profil' },
   'nav.verifications':        { en: 'Verifications',    fr: 'Vérifications' },
   'nav.accounts':             { en: 'Accounts',         fr: 'Comptes' },
+  'nav.reimbursements':       { en: 'Reimbursements',   fr: 'Remboursements' },
   'nav.reports':              { en: 'Reports',          fr: 'Rapports' },
 
   // ── Common ────────────────────────────────────────────────────────────────

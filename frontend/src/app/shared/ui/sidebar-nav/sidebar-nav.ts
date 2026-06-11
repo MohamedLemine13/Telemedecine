@@ -59,7 +59,7 @@ export interface NavGroup {
         }
       </nav>
 
-      <p class="footer">v0.0.1 · school project</p>
+      <p class="footer">v0.0.1</p>
     </aside>
   `,
   styles: `

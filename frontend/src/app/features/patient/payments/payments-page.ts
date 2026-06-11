@@ -1,7 +1,7 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 
-import { InvoiceApi, InvoiceDto, PaymentMethod, PaymentSummaryDto } from '../../../core/api/invoice.api';
+import { InvoiceApi, InvoiceDto, PaymentSummaryDto } from '../../../core/api/invoice.api';
 import { Button, Card, EmptyState, PageHeader, StatusBadge, StatusVariant } from '../../../shared/ui';
 
 /**
@@ -52,23 +52,19 @@ import { Button, Card, EmptyState, PageHeader, StatusBadge, StatusVariant } from
                     {{ i.amount | currency:i.currency:'symbol':'1.0-0' }}
                   </p>
                   @if (i.status === 'REIMBURSED' && i.reimbursedAmount) {
-                    <p class="text-xs text-green">
-                      Reimbursed {{ i.reimbursedAmount | currency:i.currency:'symbol':'1.0-0' }}
-                    </p>
+                    <p class="text-xs text-green">✓ Reimbursed {{ i.reimbursedAmount | currency:i.currency:'symbol':'1.0-0' }}</p>
+                  } @else if (i.status === 'REIMBURSEMENT_REQUESTED') {
+                    <p class="text-xs text-amber">⏳ Reimbursement of {{ i.reimbursedAmount | currency:i.currency:'symbol':'1.0-0' }} pending admin review</p>
                   }
                 </div>
                 <div class="flex shrink-0 flex-col items-end gap-2">
-                  <app-status-badge [variant]="badge(i.status)" [label]="i.status" />
+                  <app-status-badge [variant]="badge(i.status)" [label]="label(i.status)" />
                   @if (i.status === 'PENDING') {
-                    <div class="flex gap-2">
-                      <button app-button size="sm" type="button" (click)="pay(i, 'MOCK_CARD')"
-                        [loading]="working() === i.id">Pay by card</button>
-                      <button app-button size="sm" variant="secondary" type="button"
-                        (click)="pay(i, 'MOCK_MOBILE_MONEY')" [loading]="working() === i.id">Mobile money</button>
-                    </div>
+                    <button app-button size="sm" type="button" (click)="pay(i)"
+                      [loading]="working() === i.id">📱 Pay (Mobile Money)</button>
                   } @else if (i.status === 'PAID') {
                     <button app-button size="sm" variant="secondary" type="button"
-                      (click)="reimburse(i)" [loading]="working() === i.id">Claim reimbursement</button>
+                      (click)="requestReimbursement(i)" [loading]="working() === i.id">Claim reimbursement</button>
                   }
                 </div>
               </div>
@@ -86,6 +82,7 @@ import { Button, Card, EmptyState, PageHeader, StatusBadge, StatusVariant } from
     .stat-label { font-size: 0.72rem; color: var(--color-neutral-500); text-transform: uppercase; letter-spacing: 0.04em; margin: 0; }
     .stat-value { font-size: 1.4rem; font-weight: 700; margin: 4px 0 0; }
     .text-green { color: var(--color-success, #16a34a); }
+    .text-amber { color: var(--color-warning, #d97706); }
   `
 })
 export class PatientPayments implements OnInit {
@@ -111,17 +108,17 @@ export class PatientPayments implements OnInit {
     });
   }
 
-  protected pay(i: InvoiceDto, method: PaymentMethod): void {
+  protected pay(i: InvoiceDto): void {
     this.working.set(i.id); this.error.set(null);
-    this.api.pay(i.id, method).subscribe({
+    this.api.pay(i.id).subscribe({
       next: () => { this.working.set(null); this.fetch(); },
       error: () => { this.working.set(null); this.error.set(i.id); }
     });
   }
 
-  protected reimburse(i: InvoiceDto): void {
+  protected requestReimbursement(i: InvoiceDto): void {
     this.working.set(i.id); this.error.set(null);
-    this.api.reimburse(i.id).subscribe({
+    this.api.requestReimbursement(i.id).subscribe({
       next: () => { this.working.set(null); this.fetch(); },
       error: () => { this.working.set(null); this.error.set(i.id); }
     });
@@ -130,6 +127,11 @@ export class PatientPayments implements OnInit {
   protected badge(s: string): StatusVariant {
     if (s === 'PAID') return 'info';
     if (s === 'REIMBURSED') return 'success';
+    if (s === 'REIMBURSEMENT_REQUESTED') return 'neutral';
     return 'warning';
+  }
+
+  protected label(s: string): string {
+    return s === 'REIMBURSEMENT_REQUESTED' ? 'PENDING REVIEW' : s;
   }
 }

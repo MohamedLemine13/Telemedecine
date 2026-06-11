@@ -13,9 +13,21 @@ Source lives in `frontend/src`. This file walks every file and what it does.
 | File | Purpose |
 |---|---|
 | `app.ts` | Root standalone component (`<router-outlet>`). |
-| `app.config.ts` | App providers: router, HTTP client with the interceptor chain, zone/signals config. |
+| `main.ts` | Bootstraps the app and registers the chunk-reload listener (see below). |
+| `app.config.ts` | App providers: router, HTTP client with the interceptor chain, zone/signals config, and the `ChunkReloadErrorHandler`. |
 | `app.routes.ts` | Top-level routes → role shells (`/patient`, `/doctor`, `/admin`, `/auth`), legal/help, error pages, guarded redirects. |
+| `core/chunk-reload.ts` | `ChunkReloadErrorHandler` + `registerChunkReloadListener`: self-healing for stale deployments. After the frontend image is rebuilt, lazy chunks get new content-hashed names and the old ones are deleted; a browser holding a cached `index.html` then requests a chunk that 404s and the dynamic `import()` fails ("disallowed MIME type" / "failed to fetch dynamically imported module"). This catches that error (via the Angular `ErrorHandler` **and** an `unhandledrejection` listener) and reloads **once** (guarded by a `sessionStorage` cooldown, so no refresh loop) to pick up the fresh `index.html` (served `no-store`) and current chunk map. |
 | `environments/environment*.ts` | `apiBaseUrl` (empty = same-origin via nginx) and informational LiveKit URL, per build configuration. |
+
+**Build & serving.** The Docker image is a **production** Angular build
+(`ng build --configuration=production`): optimised, minified, no source maps,
+content-hashed chunk filenames (`outputHashing: all`), and Angular's dev-mode
+disabled — so no "running in development mode" console notice or source-map
+noise. nginx serves `index.html` with `no-store` (always re-fetched, so the chunk
+map is current after a rebuild) and the hashed assets `immutable`; missing chunks
+return `404` (never the SPA HTML fallback). The app is reachable over plain HTTP
+(`:4200`) and **HTTPS** (`:4443`, project PKI) — HTTPS is required for camera/mic;
+see the README's *HTTPS* section.
 
 ---
 

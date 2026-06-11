@@ -20,6 +20,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     List<Invoice> findByDoctorAccountIdOrderByCreatedAtDesc(UUID accountId);
 
+    /** Admin reimbursement queue — all invoices in a given status, newest first. */
+    List<Invoice> findByStatusOrderByCreatedAtDesc(Invoice.Status status);
+
     /** Platform-wide collected revenue (paid + reimbursed invoices). */
     @Query("""
         select coalesce(sum(i.amount), 0) from Invoice i

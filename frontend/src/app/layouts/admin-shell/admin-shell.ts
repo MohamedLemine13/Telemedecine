@@ -52,6 +52,7 @@ export class AdminShell {
       title: this.t('nav.group.management'),
       items: [
         { label: this.t('nav.accounts'), path: 'accounts', icon: 'users' },
+        { label: this.t('nav.reimbursements'), path: 'reimbursements', icon: 'card' },
         { label: this.t('nav.settings'), path: 'settings', icon: 'settings' }
       ]
     }
