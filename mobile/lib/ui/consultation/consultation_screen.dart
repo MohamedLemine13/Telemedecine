@@ -96,8 +96,25 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
       // directly, and calling permission_handler there throws
       // MissingPluginException — so request only on mobile.
       if (isMobilePlatform) {
-        await Permission.microphone.request();
-        if (info.isVideo) await Permission.camera.request();
+        final mic = await Permission.microphone.request();
+        var cam = PermissionStatus.granted;
+        if (info.isVideo) cam = await Permission.camera.request();
+
+        // If the user permanently denied access, stop here with a clear
+        // message + a shortcut to the OS settings instead of failing silently.
+        if (mic.isPermanentlyDenied || cam.isPermanentlyDenied) {
+          if (!mounted) return;
+          setState(() => _videoError =
+              'Microphone/camera access is blocked. Enable it in Settings to use the call.');
+          await openAppSettings();
+          return;
+        }
+        if (mic.isDenied || (info.isVideo && cam.isDenied)) {
+          if (!mounted) return;
+          setState(() => _videoError =
+              'Microphone/camera permission is needed for the call — chat still works.');
+          return;
+        }
       }
 
       final room = Room(

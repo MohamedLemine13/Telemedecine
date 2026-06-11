@@ -30,6 +30,7 @@ public class Notification extends BaseEntity {
         APPOINTMENT_CANCELLED,
         APPOINTMENT_RESCHEDULED,
         NEW_CHAT_MESSAGE,
+        PRESCRIPTION_ISSUED,
         INVOICE_PAID,
         SYSTEM
     }

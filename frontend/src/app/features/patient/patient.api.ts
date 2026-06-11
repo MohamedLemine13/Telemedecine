@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
-export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'UNDISCLOSED';
+// The medical record records biological sex, restricted to male/female.
+export type Gender = 'MALE' | 'FEMALE';
 export type AllergySeverity = 'MILD' | 'MODERATE' | 'SEVERE' | 'LIFE_THREATENING';
 
 export interface AllergyDto {

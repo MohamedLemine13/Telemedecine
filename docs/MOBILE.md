@@ -49,11 +49,11 @@ Source lives in `mobile/lib`. This file walks every file and what it does.
 | File | Purpose |
 |---|---|
 | `home/home_shell.dart` | `HomeShell` — bottom `NavigationBar` with five tabs (Appointments, Doctors, Records, Alerts, Profile) over an `IndexedStack`. `_goToAppointments` jumps back after booking. |
-| `auth/login_screen.dart` | Email/password sign-in + sign-up + the 2FA code step; calls `AuthStore`. |
+| `auth/login_screen.dart` | Email/password sign-in + sign-up + the 2FA code step; calls `AuthStore`. Fields sit in an `AutofillGroup` with `autofillHints` (username/email + password/newPassword) and call `TextInput.finishAutofillContext()` on success, so the phone's / browser's password manager offers to save the credentials. |
 | `appointments/appointments_screen.dart` | Patient appointments with join/cancel; `refresh()` exposed via a `GlobalKey`. |
 | `doctors/doctors_screen.dart` | Search doctors; `onBooked` callback returns to appointments. |
 | `doctors/doctor_detail_screen.dart` | Doctor profile + slot picker → book. |
-| `consultation/consultation_screen.dart` | LiveKit call screen — joins the room via `ConsultationService`, renders remote/local video, mic/cam controls, in-call chat. Uses `AppConfig.livekitUrlFor`. |
+| `consultation/consultation_screen.dart` | LiveKit call screen — joins the room via `ConsultationService`, renders remote/local video, mic/cam controls, in-call chat. Uses `AppConfig.livekitUrlFor`. Requests mic (and camera for video) at runtime via `permission_handler`; a permanent denial shows a clear message and opens the OS settings, a soft denial degrades to chat-only. Leaving never completes the appointment — only the doctor ending the call does (enforced server-side). |
 | `prescriptions/prescriptions_screen.dart` | Real prescriptions list (the "Records" tab); pull-to-refresh; tap opens a bottom sheet with the full medication details. |
 | `notifications/notifications_screen.dart` | Alerts feed — pull-to-refresh, per-type icons, "mark all read", taps mark read. The push-notification equivalent. |
 | `profile/profile_screen.dart` | Patient profile summary + sign-out. |

@@ -1,6 +1,7 @@
 import { Component, input } from '@angular/core';
 
 import { Icon } from '../icon/icon';
+import { LanguageSwitcher } from '../language-switcher/language-switcher';
 import { NotificationBell } from '../notification-bell/notification-bell';
 import { UserMenu } from '../user-menu/user-menu';
 
@@ -17,7 +18,7 @@ import { UserMenu } from '../user-menu/user-menu';
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [Icon, NotificationBell, UserMenu],
+  imports: [Icon, LanguageSwitcher, NotificationBell, UserMenu],
   template: `
     <header class="topbar">
       <div class="left">
@@ -36,6 +37,7 @@ import { UserMenu } from '../user-menu/user-menu';
 
       <div class="right">
         <ng-content select="[topbar-actions]" />
+        <app-language-switcher />
         <app-notification-bell />
         <app-user-menu />
       </div>

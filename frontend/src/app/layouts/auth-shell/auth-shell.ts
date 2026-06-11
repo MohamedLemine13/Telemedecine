@@ -1,6 +1,8 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
+import { LanguageSwitcher } from '../../shared/ui';
+
 /**
  * Two-column auth shell, mirroring the middle row of design/Authentication.png.
  * - md+: brand panel left (60%), form card right (40%).
@@ -9,9 +11,10 @@ import { RouterOutlet } from '@angular/router';
 @Component({
   selector: 'app-auth-shell',
   standalone: true,
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, LanguageSwitcher],
   template: `
     <div class="auth-shell">
+      <div class="lang-float"><app-language-switcher /></div>
       <aside class="brand-panel" aria-hidden="true">
         <div class="bg-art">
           <div class="blob blob-a"></div>
@@ -51,7 +54,9 @@ import { RouterOutlet } from '@angular/router';
       min-height: 100vh;
       grid-template-columns: 1fr;
       background: var(--color-neutral-50);
+      position: relative;
     }
+    .lang-float { position: absolute; top: 16px; right: 16px; z-index: 10; }
     @media (min-width: 900px) {
       .auth-shell { grid-template-columns: 1.1fr 1fr; }
     }

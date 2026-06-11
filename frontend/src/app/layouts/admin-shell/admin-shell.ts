@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
+import { LocaleService } from '../../core/i18n/locale.service';
 import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
 
 @Component({
@@ -9,9 +10,9 @@ import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
   imports: [RouterOutlet, SidebarNav, Topbar],
   template: `
     <div class="layout">
-      <app-sidebar-nav brand="Telemedecine" brandSub="Admin" [groups]="groups" />
+      <app-sidebar-nav brand="Telemedecine" brandSub="Admin" [groups]="groups()" />
       <div class="main">
-        <app-topbar title="Administration" />
+        <app-topbar [title]="locale.t('shell.admin')" />
         <main class="content">
           <router-outlet />
         </main>
@@ -35,21 +36,24 @@ import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
   `
 })
 export class AdminShell {
-  readonly groups: NavGroup[] = [
+  protected readonly locale = inject(LocaleService);
+  private readonly t = (k: string) => this.locale.t(k);
+
+  readonly groups = computed<NavGroup[]>(() => [
     {
-      title: 'Overview',
+      title: this.t('nav.group.overview'),
       items: [
-        { label: 'Dashboard',     path: 'dashboard',     icon: 'layoutGrid' },
-        { label: 'Verifications', path: 'verifications', icon: 'shield' },
-        { label: 'Reports',       path: 'reports',       icon: 'history' }
+        { label: this.t('nav.dashboard'),     path: 'dashboard',     icon: 'layoutGrid' },
+        { label: this.t('nav.verifications'), path: 'verifications', icon: 'shield' },
+        { label: this.t('nav.reports'),       path: 'reports',       icon: 'history' }
       ]
     },
     {
-      title: 'Management',
+      title: this.t('nav.group.management'),
       items: [
-        { label: 'Accounts',  path: 'accounts',  icon: 'users' },
-        { label: 'Settings',  path: 'settings',  icon: 'settings' }
+        { label: this.t('nav.accounts'), path: 'accounts', icon: 'users' },
+        { label: this.t('nav.settings'), path: 'settings', icon: 'settings' }
       ]
     }
-  ];
+  ]);
 }

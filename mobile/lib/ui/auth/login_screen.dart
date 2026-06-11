@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/auth_store.dart';
@@ -49,6 +50,9 @@ class _LoginScreenState extends State<LoginScreen>
         ? await auth.login(_email.text.trim(), _password.text)
         : await auth.signup(_email.text.trim(), _password.text);
     if (!mounted) return;
+    // On success, tell the platform the credentials are committed so the OS /
+    // browser password manager offers to save them.
+    if (err == null) TextInput.finishAutofillContext();
     setState(() { _busy = false; _error = err; });
   }
 
@@ -157,33 +161,51 @@ class _LoginScreenState extends State<LoginScreen>
                           child: _busy ? const _Spinner() : const Text('Verify'),
                         ),
                       ] else ...[
-                        _sectionLabel('Email address'),
-                        TextField(
-                          controller: _email,
-                          keyboardType: TextInputType.emailAddress,
-                          autocorrect: false,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            hintText: 'you@example.com',
-                            prefixIcon: Icon(Icons.email_outlined, size: 20),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _sectionLabel('Password'),
-                        TextField(
-                          controller: _password,
-                          obscureText: _obscure,
-                          onSubmitted: (_) => _busy ? null : _submit(),
-                          decoration: InputDecoration(
-                            hintText: '••••••••••••',
-                            prefixIcon: const Icon(Icons.lock_outline, size: 20),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined),
-                              onPressed: () =>
-                                  setState(() => _obscure = !_obscure),
-                            ),
+                        AutofillGroup(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _sectionLabel('Email address'),
+                              TextField(
+                                controller: _email,
+                                keyboardType: TextInputType.emailAddress,
+                                autocorrect: false,
+                                autofocus: true,
+                                textInputAction: TextInputAction.next,
+                                autofillHints: const [
+                                  AutofillHints.username,
+                                  AutofillHints.email,
+                                ],
+                                decoration: const InputDecoration(
+                                  hintText: 'you@example.com',
+                                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _sectionLabel('Password'),
+                              TextField(
+                                controller: _password,
+                                obscureText: _obscure,
+                                textInputAction: TextInputAction.done,
+                                autofillHints: [
+                                  _mode == _Mode.login
+                                      ? AutofillHints.password
+                                      : AutofillHints.newPassword,
+                                ],
+                                onSubmitted: (_) => _busy ? null : _submit(),
+                                decoration: InputDecoration(
+                                  hintText: '••••••••••••',
+                                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(_obscure
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined),
+                                    onPressed: () =>
+                                        setState(() => _obscure = !_obscure),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         if (_mode == _Mode.signup) ...[

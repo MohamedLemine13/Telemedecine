@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
+import { LocaleService } from '../../core/i18n/locale.service';
 import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
 
 @Component({
@@ -9,9 +10,9 @@ import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
   imports: [RouterOutlet, SidebarNav, Topbar],
   template: `
     <div class="layout">
-      <app-sidebar-nav brand="Telemedecine" brandSub="Patient" [groups]="groups" />
+      <app-sidebar-nav brand="Telemedecine" brandSub="Patient" [groups]="groups()" />
       <div class="main">
-        <app-topbar title="My health space" />
+        <app-topbar [title]="locale.t('shell.patient')" />
         <main class="content">
           <router-outlet />
         </main>
@@ -35,24 +36,27 @@ import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
   `
 })
 export class PatientShell {
-  readonly groups: NavGroup[] = [
+  protected readonly locale = inject(LocaleService);
+  private readonly t = (k: string) => this.locale.t(k);
+
+  readonly groups = computed<NavGroup[]>(() => [
     {
-      title: 'Main',
+      title: this.t('nav.group.main'),
       items: [
-        { label: 'Dashboard',      path: 'dashboard',      icon: 'home' },
-        { label: 'Find a doctor',  path: 'doctors',        icon: 'search' },
-        { label: 'Appointments',   path: 'appointments',   icon: 'calendar' },
-        { label: 'Medical record', path: 'medical-record', icon: 'fileText' },
-        { label: 'Prescriptions',  path: 'prescriptions',  icon: 'pill' }
+        { label: this.t('nav.dashboard'),     path: 'dashboard',      icon: 'home' },
+        { label: this.t('nav.doctors'),       path: 'doctors',        icon: 'search' },
+        { label: this.t('nav.appointments'),  path: 'appointments',   icon: 'calendar' },
+        { label: this.t('nav.medicalRecord'), path: 'medical-record', icon: 'fileText' },
+        { label: this.t('nav.prescriptions'), path: 'prescriptions',  icon: 'pill' }
       ]
     },
     {
-      title: 'Account',
+      title: this.t('nav.group.account'),
       items: [
-        { label: 'Messages', path: 'messages', icon: 'message' },
-        { label: 'Payments', path: 'payments', icon: 'card' },
-        { label: 'Settings', path: 'settings', icon: 'settings' }
+        { label: this.t('nav.messages'), path: 'messages', icon: 'message' },
+        { label: this.t('nav.payments'), path: 'payments', icon: 'card' },
+        { label: this.t('nav.settings'), path: 'settings', icon: 'settings' }
       ]
     }
-  ];
+  ]);
 }

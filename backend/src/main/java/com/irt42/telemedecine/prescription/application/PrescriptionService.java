@@ -4,6 +4,9 @@ import com.irt42.telemedecine.appointment.domain.Appointment;
 import com.irt42.telemedecine.appointment.infrastructure.AppointmentRepository;
 import com.irt42.telemedecine.prescription.api.dto.IssuePrescriptionRequest;
 import com.irt42.telemedecine.prescription.api.dto.PrescriptionDto;
+import com.irt42.telemedecine.doctor.domain.DoctorProfile;
+import com.irt42.telemedecine.notification.application.NotificationService;
+import com.irt42.telemedecine.notification.domain.Notification;
 import com.irt42.telemedecine.prescription.domain.Prescription;
 import com.irt42.telemedecine.prescription.infrastructure.PrescriptionRepository;
 import org.springframework.http.HttpStatus;
@@ -26,11 +29,14 @@ public class PrescriptionService {
 
     private final PrescriptionRepository prescriptions;
     private final AppointmentRepository appointments;
+    private final NotificationService notifications;
 
     public PrescriptionService(PrescriptionRepository prescriptions,
-                               AppointmentRepository appointments) {
+                               AppointmentRepository appointments,
+                               NotificationService notifications) {
         this.prescriptions = prescriptions;
         this.appointments = appointments;
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -51,7 +57,28 @@ public class PrescriptionService {
         p.setTitle(req.title().trim());
         p.setBody(req.body().trim());
         p.setIssuedAt(Instant.now());
-        return PrescriptionDto.from(prescriptions.save(p));
+        Prescription saved = prescriptions.save(p);
+
+        // Deliver it to the patient: an in-app notification (their bell + the
+        // mobile "Alerts" feed) mirrored to email, so they actually receive the
+        // prescription rather than having to go looking for it.
+        notifications.notify(
+            appt.getPatient().getAccount().getId(),
+            Notification.Type.PRESCRIPTION_ISSUED,
+            "New prescription from " + doctorName(appt.getDoctor()),
+            saved.getTitle(),
+            "/patient/prescriptions"
+        );
+        return PrescriptionDto.from(saved);
+    }
+
+    private static String doctorName(DoctorProfile d) {
+        StringBuilder sb = new StringBuilder();
+        if (d.getTitle() != null && !d.getTitle().isBlank()) sb.append(d.getTitle()).append(' ');
+        if (d.getFirstName() != null && !d.getFirstName().isBlank()) sb.append(d.getFirstName()).append(' ');
+        if (d.getLastName() != null && !d.getLastName().isBlank()) sb.append(d.getLastName());
+        String name = sb.toString().trim();
+        return name.isEmpty() ? d.getAccount().getEmail() : name;
     }
 
     @Transactional(readOnly = true)

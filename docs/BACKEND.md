@@ -144,7 +144,10 @@ Spring Boot entry point (`main`). Enables component scanning for the whole
   `reportPdf` (`/{id}/report.pdf`, doctor), `join` (`/{appointmentId}/join`),
   `end`, `messages`, `send`, `getNote`, `updateNote`.
 - **`ConsultationService`** — `join` (creates/loads the consultation, mints a
-  LiveKit token, builds `JoinResponse`), `end`, `listMessages`, `sendMessage`
+  LiveKit token, builds `JoinResponse`), `end` (**doctor-only effect**: a patient
+  leaving is a no-op so they can rejoin; only the doctor ending closes the
+  consultation and marks a still-`SCHEDULED` appointment `COMPLETED`),
+  `listMessages`, `sendMessage`
   (persists → `chatSocket.broadcast`; if counterpart offline →
   `NEW_CHAT_MESSAGE` notification), `getNote`/`saveNote` (doctor-only),
   `listConversations` (→ `ConversationDto` list), `reportData` (assembles the
@@ -170,7 +173,9 @@ Spring Boot entry point (`main`). Enables component scanning for the whole
 - **`PrescriptionController`** (`/api/prescriptions`): `issue` (doctor), role-aware
   `list`, `get`, `pdf` (`/{id}/pdf`, `application/pdf`).
 - **`PrescriptionService`** — `issue` (verifies the doctor owns the appointment,
-  409 if cancelled), `listForDoctor`/`listForPatient`, `get`.
+  409 if cancelled, then **notifies the patient** with a `PRESCRIPTION_ISSUED`
+  notification → their bell + mobile Alerts + email so they actually receive it),
+  `listForDoctor`/`listForPatient`, `get`.
 - **domain**: `Prescription` (doctor, patient, `appointmentId`, title, body,
   issuedAt).
 - **dto**: `IssuePrescriptionRequest`, `PrescriptionDto` (+ `displayName` helper).

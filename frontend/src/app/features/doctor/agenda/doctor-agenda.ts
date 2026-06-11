@@ -61,6 +61,10 @@ interface DayGroup { date: string; label: string; items: AppointmentDto[]; }
                       <button app-button size="sm" variant="secondary" type="button" (click)="complete(a)" [loading]="working() === a.id">Complete</button>
                       <button app-button size="sm" variant="danger" type="button" (click)="cancel(a)" [loading]="working() === a.id">Cancel</button>
                     }
+                    @if (a.status !== 'CANCELLED') {
+                      <a app-button size="sm" variant="secondary"
+                         [routerLink]="['/doctor/prescriptions/new']" [queryParams]="{ appointmentId: a.id }">℞ Prescribe</a>
+                    }
                   </div>
                 </li>
               }

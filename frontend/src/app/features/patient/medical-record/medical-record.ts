@@ -8,6 +8,7 @@ import {
   PatientProfileDto,
   TreatmentDto
 } from '../patient.api';
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { Button, Card } from '../../../shared/ui';
 
 type Tab = 'overview' | 'allergies' | 'treatments' | 'labs';
@@ -15,7 +16,7 @@ type Tab = 'overview' | 'allergies' | 'treatments' | 'labs';
 @Component({
   selector: 'app-medical-record',
   standalone: true,
-  imports: [ReactiveFormsModule, Button, Card],
+  imports: [ReactiveFormsModule, Button, Card, TranslatePipe],
   template: `
     <header class="mb-6">
       <h1 class="text-2xl font-bold text-[color:var(--color-neutral-900)]">Medical record</h1>
@@ -54,21 +55,19 @@ type Tab = 'overview' | 'allergies' | 'treatments' | 'labs';
               <input formControlName="lastName" class="field" />
             </label>
             <label class="flex flex-col gap-1.5">
-              <span class="text-xs font-semibold">Date of birth</span>
+              <span class="text-xs font-semibold">{{ 'mr.dob' | t }}</span>
               <input type="date" formControlName="dateOfBirth" class="field" />
             </label>
             <label class="flex flex-col gap-1.5">
-              <span class="text-xs font-semibold">Gender</span>
+              <span class="text-xs font-semibold">{{ 'mr.gender' | t }}</span>
               <select formControlName="gender" class="field">
                 <option value="">—</option>
-                <option value="FEMALE">Female</option>
-                <option value="MALE">Male</option>
-                <option value="OTHER">Other</option>
-                <option value="UNDISCLOSED">Prefer not to say</option>
+                <option value="FEMALE">{{ 'mr.gender.female' | t }}</option>
+                <option value="MALE">{{ 'mr.gender.male' | t }}</option>
               </select>
             </label>
             <label class="flex flex-col gap-1.5 md:col-span-2">
-              <span class="text-xs font-semibold">Medical history</span>
+              <span class="text-xs font-semibold">{{ 'mr.history' | t }}</span>
               <textarea formControlName="medicalHistory" rows="5" class="field" placeholder="Past conditions, surgeries, family history…"></textarea>
             </label>
             <div class="md:col-span-2">

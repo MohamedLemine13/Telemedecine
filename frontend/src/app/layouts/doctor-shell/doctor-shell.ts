@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
+import { LocaleService } from '../../core/i18n/locale.service';
 import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
 
 @Component({
@@ -9,9 +10,9 @@ import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
   imports: [RouterOutlet, SidebarNav, Topbar],
   template: `
     <div class="layout">
-      <app-sidebar-nav brand="Telemedecine" brandSub="Practice" [groups]="groups" />
+      <app-sidebar-nav brand="Telemedecine" [brandSub]="locale.t('shell.practice')" [groups]="groups()" />
       <div class="main">
-        <app-topbar title="Practice" />
+        <app-topbar [title]="locale.t('shell.practice')" />
         <main class="content">
           <router-outlet />
         </main>
@@ -35,24 +36,27 @@ import { NavGroup, SidebarNav, Topbar } from '../../shared/ui';
   `
 })
 export class DoctorShell {
-  readonly groups: NavGroup[] = [
+  protected readonly locale = inject(LocaleService);
+  private readonly t = (k: string) => this.locale.t(k);
+
+  readonly groups = computed<NavGroup[]>(() => [
     {
-      title: 'Main',
+      title: this.t('nav.group.main'),
       items: [
-        { label: 'Dashboard',     path: 'dashboard',    icon: 'home' },
-        { label: 'Agenda',        path: 'agenda',       icon: 'calendar' },
-        { label: 'Availability',  path: 'availability', icon: 'clipboard' },
-        { label: 'Patients',      path: 'patients',     icon: 'users' }
+        { label: this.t('nav.dashboard'),    path: 'dashboard',    icon: 'home' },
+        { label: this.t('nav.agenda'),       path: 'agenda',       icon: 'calendar' },
+        { label: this.t('nav.availability'), path: 'availability', icon: 'clipboard' },
+        { label: this.t('nav.patients'),     path: 'patients',     icon: 'users' }
       ]
     },
     {
-      title: 'Practice',
+      title: this.t('nav.group.practice'),
       items: [
-        { label: 'Messages',      path: 'messages',     icon: 'message' },
-        { label: 'Payouts',       path: 'payouts',      icon: 'card' },
-        { label: 'Profile',       path: 'profile',      icon: 'user' },
-        { label: 'Settings',      path: 'settings',     icon: 'settings' }
+        { label: this.t('nav.messages'), path: 'messages', icon: 'message' },
+        { label: this.t('nav.payouts'),  path: 'payouts',  icon: 'card' },
+        { label: this.t('nav.profile'),  path: 'profile',  icon: 'user' },
+        { label: this.t('nav.settings'), path: 'settings', icon: 'settings' }
       ]
     }
-  ];
+  ]);
 }

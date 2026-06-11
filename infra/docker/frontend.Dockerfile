@@ -15,24 +15,37 @@ RUN --mount=type=cache,target=/root/.npm \
 
 COPY . .
 
-# Build with the `development` configuration so the API base URL resolves to
-# `http://localhost:8080` and LiveKit to `ws://localhost:7880` — both reachable
-# from the browser via published container ports. The reverse proxy in stage 2
-# also makes `/api/*` and `/ws/*` work same-origin via http://localhost:4200.
-RUN npx ng build --configuration=development --output-path=dist
+# Build with the `production` configuration: optimized + minified, no source
+# maps, content-hashed chunk filenames (`outputHashing: all`) and Angular's
+# dev-mode disabled. `apiBaseUrl` is `''` in every configuration, so API/WS
+# traffic stays same-origin and is proxied by the nginx in stage 2 — meaning a
+# production build is safe here and removes the "running in development mode"
+# notice and the source-map console noise.
+RUN npx ng build --configuration=production --output-path=dist
 
 # ─── Stage 2: nginx ───────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine AS runtime
 
-# nginx:alpine ships neither curl nor wget — install curl for the healthcheck.
-RUN apk add --no-cache curl
+# nginx:alpine ships neither curl nor wget — install curl for the healthcheck,
+# openssl to mint the self-signed TLS cert for the HTTPS (secure-context)
+# listener that browser camera/microphone access requires.
+RUN apk add --no-cache curl openssl
+
+# Self-signed certificate so the app can be served over https:// from any host
+# — a secure context, required by browsers before they grant getUserMedia.
+RUN mkdir -p /etc/nginx/certs && \
+    openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+      -keyout /etc/nginx/certs/selfsigned.key \
+      -out    /etc/nginx/certs/selfsigned.crt \
+      -subj "/CN=telemedecine.local" \
+      -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 
 # Strip default site, install our SPA + reverse-proxy config.
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/app.conf
 COPY --from=build /workspace/dist/browser /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 80 443
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=5 \
   CMD curl -fsS http://localhost:80/ >/dev/null || exit 1

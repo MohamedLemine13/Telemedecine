@@ -102,10 +102,19 @@ public class ConsultationService {
     @Transactional
     public void end(UUID accountId, UUID consultationId) {
         Consultation c = loadParticipantConsultation(accountId, consultationId);
+        Side side = sideOf(accountId, c.getAppointment());
+
+        // A patient stepping out of the room must NOT close the consultation: they
+        // may have joined early, dropped, or be coming back. Only the doctor — who
+        // owns the clinical encounter — ends the call and completes the appointment.
+        if (side.role != Appointment.Party.DOCTOR) {
+            return;
+        }
+
         if (c.getStatus() == Consultation.Status.ENDED) return;
         c.setStatus(Consultation.Status.ENDED);
         c.setEndedAt(Instant.now());
-        // Wrapping up the call marks a still-scheduled appointment as completed.
+        // The doctor wrapping up the call marks a still-scheduled appointment as completed.
         Appointment appt = c.getAppointment();
         if (appt.getStatus() == Appointment.Status.SCHEDULED) {
             appt.setStatus(Appointment.Status.COMPLETED);

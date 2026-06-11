@@ -106,6 +106,10 @@ services:
         condition: service_started
     ports:
       - "4200:80"
+      # HTTPS (self-signed) — needed so the browser grants camera/mic access
+      # when the app is opened from a phone or another machine by IP. Open
+      # https://<host>:4443 and accept the certificate warning once.
+      - "4443:443"
 
   # ─── Mobile (one-shot APK builder) ──────────────────────────────────────────
   # Not part of the running stack — only built on demand under the `mobile`

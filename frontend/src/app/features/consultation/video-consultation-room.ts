@@ -56,8 +56,11 @@ type Phase = 'connecting' | 'live' | 'ended' | 'error';
           } @else if (videoError()) {
             <div class="waiting">
               <p class="text-lg font-semibold">Video unavailable</p>
-              <p class="text-sm opacity-70">{{ videoError() }}</p>
+              <p class="text-sm opacity-70 max-w-sm">{{ videoError() }}</p>
               <p class="text-sm opacity-70">Chat still works — you can message on the right.</p>
+              <button class="btn-primary mt-3" (click)="retryVideo()" [disabled]="retrying()">
+                {{ retrying() ? 'Retrying…' : '↻ Retry camera' }}
+              </button>
             </div>
           } @else if (!remoteConnected()) {
             <div class="waiting">
@@ -220,11 +223,21 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
     this.startChatPolling();
     if (this.isDoctor()) this.loadNote();
 
+    // 1) Ask the browser for camera/mic up front. This is what pops the native
+    //    "Allow camera & microphone?" prompt; doing it explicitly (instead of
+    //    letting LiveKit do it implicitly) lets us give a precise reason when it
+    //    fails — denied, no device, or an insecure (http://) origin where the
+    //    browser blocks media entirely.
+    const needsCamera = j.mode === 'VIDEO';
+    const granted = await this.ensureMediaPermissions(needsCamera);
+    if (!granted) return;   // videoError already set with a helpful message
+
+    // 2) Connect to the room and publish.
     try {
       const room = await this.connectRoom(j);
       this.room = room;
 
-      if (j.mode === 'VIDEO') {
+      if (needsCamera) {
         await room.localParticipant.enableCameraAndMicrophone();
         this.attachLocalCamera();
       } else {
@@ -234,7 +247,53 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
       this.refreshRemotePresence();
       room.startAudio().catch(() => { /* autoplay may need a click; harmless */ });
     } catch (e: any) {
-      this.videoError.set(e?.message ?? 'Camera/microphone or network unavailable.');
+      this.videoError.set(this.describeMediaError(e));
+    }
+  }
+
+  /**
+   * Pre-flight the camera/microphone permission so the prompt is explicit and
+   * failures are explainable. Returns false (and sets {@link videoError}) when
+   * media can't be obtained, in which case the room stays in chat-only mode.
+   */
+  private async ensureMediaPermissions(withCamera: boolean): Promise<boolean> {
+    // getUserMedia only exists on a secure context (https) or localhost. Over
+    // plain http on a LAN IP the whole `mediaDevices` API is undefined — the
+    // #1 cause of "the call always fails" when testing from a phone.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      this.videoError.set(
+        'Your browser blocks the camera and microphone on insecure (http://) ' +
+        'connections. Open the app over https or via localhost to enable video calls.'
+      );
+      return false;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: withCamera
+      });
+      // We only needed the permission grant; LiveKit opens its own tracks next.
+      stream.getTracks().forEach(t => t.stop());
+      return true;
+    } catch (e: any) {
+      this.videoError.set(this.describeMediaError(e));
+      return false;
+    }
+  }
+
+  private describeMediaError(e: any): string {
+    switch (e?.name) {
+      case 'NotAllowedError':
+      case 'SecurityError':
+        return 'Camera/microphone access was blocked. Click the camera icon in ' +
+               'your browser\'s address bar to allow it, then rejoin.';
+      case 'NotFoundError':
+      case 'DevicesNotFoundError':
+        return 'No camera or microphone was found on this device.';
+      case 'NotReadableError':
+        return 'Your camera or microphone is already in use by another app.';
+      default:
+        return e?.message || 'Camera/microphone or network unavailable.';
     }
   }
 
@@ -345,6 +404,36 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
     this.router.navigateByUrl(role === 'DOCTOR' ? '/doctor/agenda' : '/patient/appointments');
   }
 
+  protected readonly retrying = signal(false);
+
+  /** Re-attempt camera/mic + room connection after the user fixes permissions. */
+  protected async retryVideo(): Promise<void> {
+    const j = this.join();
+    if (!j || this.retrying()) return;
+    this.retrying.set(true);
+    this.videoError.set(null);
+    this.teardownRoomOnly();
+    try {
+      const granted = await this.ensureMediaPermissions(j.mode === 'VIDEO');
+      if (granted) {
+        const room = await this.connectRoom(j);
+        this.room = room;
+        if (j.mode === 'VIDEO') {
+          await room.localParticipant.enableCameraAndMicrophone();
+          this.attachLocalCamera();
+        } else {
+          await room.localParticipant.setMicrophoneEnabled(true);
+        }
+        this.refreshRemotePresence();
+        room.startAudio().catch(() => {});
+      }
+    } catch (e: any) {
+      this.videoError.set(this.describeMediaError(e));
+    } finally {
+      this.retrying.set(false);
+    }
+  }
+
   protected readonly downloading = signal(false);
 
   /** Doctor downloads the consultation report (clinical note + summary) as a PDF. */
@@ -425,12 +514,18 @@ export class VideoConsultationRoom implements OnInit, OnDestroy {
     this.phase.set('error');
   }
 
-  private teardownRoom(): void {
-    if (this.pollTimer) clearInterval(this.pollTimer);
+  /** Drop the LiveKit room + audio elements but keep chat/notes running. */
+  private teardownRoomOnly(): void {
     this.audioEls.forEach(el => el.remove());
     this.audioEls.length = 0;
     this.room?.disconnect();
     this.room = undefined;
+    this.remoteConnected.set(false);
+  }
+
+  private teardownRoom(): void {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.teardownRoomOnly();
   }
 
   ngOnDestroy(): void {
